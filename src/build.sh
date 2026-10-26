@@ -77,6 +77,17 @@ else
 fi
 echo "$VER" > module/webui/VERSION
 
+# Minify WebUI (JS/CSS/HTML inline) agar modul lebih ringan; perilaku tidak berubah.
+# Opsional: butuh node+npm. Bila esbuild tak bisa dipasang (mis. offline), langkah
+# ini dilewati dan WebUI tetap dipakai apa adanya. MINIFY=0 untuk mematikan.
+if [ "${MINIFY:-1}" = "1" ] && command -v node >/dev/null 2>&1 && [ -f minify-webui.cjs ]; then
+  echo "== webui: minify =="
+  if [ ! -d node_modules/esbuild ] && command -v npm >/dev/null 2>&1; then
+    npm install --no-save --no-audit --no-fund --loglevel=error esbuild@0.27.7 >/dev/null 2>&1 || true
+  fi
+  node minify-webui.cjs module/webui || echo "minify dilewati (gagal), WebUI dipakai apa adanya"
+fi
+
 if [ "$FULL" = "1" ]; then
   echo "== geodata (satu set bersama) =="
   rm -rf module/geodata && mkdir -p module/geodata
@@ -96,6 +107,7 @@ echo "== source zip (slim: tanpa zashboard, geodata, biner) =="
 rm -f "dist/taptapapp-go-$VER-source.zip"
 rm -rf /tmp/tapp-src && mkdir -p /tmp/tapp-src/taptapapp-go-src
 cp -r backend build.sh /tmp/tapp-src/taptapapp-go-src/
+cp minify-webui.cjs /tmp/tapp-src/taptapapp-go-src/ 2>/dev/null || true
 # buang artefak build yang mungkin tertinggal di folder backend
 rm -f /tmp/tapp-src/taptapapp-go-src/backend/taptapapp /tmp/tapp-src/taptapapp-go-src/backend/taptapclash
 mkdir -p /tmp/tapp-src/taptapapp-go-src/module
