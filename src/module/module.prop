@@ -1,0 +1,6 @@
+id=taptapapp-go
+name=TaptapApp-Go
+version=v1.0.0
+versionCode=1
+author=@TapTap_56
+description=🐱 TaptapApp-Go — transparent proxy dua core (sing-box + mihomo, bisa dipilih) + WebUI untuk Magisk. Buka WebUI: http://127.0.0.1:5656
