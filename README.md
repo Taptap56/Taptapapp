@@ -41,6 +41,14 @@ Hasilnya ada di `src/dist/`: `taptapapp-go-v1.0.0.zip` (instalasi) dan
 aset eksternal selama paket SLIM (default); `FULL=1` membundel semua aset
 dan butuh folder `assets/` (core, geodata, zashboard, scrcpy-server.jar).
 
+## WebUI diperingan
+
+`src/build.sh` memperkecil WebUI saat build (`src/minify-webui.cjs`, esbuild:
+JS, CSS, dan blok inline di HTML, termasuk file animasi). Perilaku dan tampilan
+tidak berubah; source di `src/webui/` tetap terbaca dan itulah yang diedit.
+Butuh node+npm (sudah ada di GitHub Actions); bila tidak ada, langkah ini
+dilewati otomatis. `MINIFY=0 sh build.sh` untuk mematikannya.
+
 ## Versi
 
 Satu sumber kebenaran: `src/module/module.prop` (`version` dan
