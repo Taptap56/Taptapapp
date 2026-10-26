@@ -33,9 +33,11 @@ jobs:
         # jadi build ini tidak butuh aset eksternal apa pun.
         run: sh src/build.sh
 
-      - name: Upload module + source zips
+      - name: Upload install zip only
+        # Hanya zip instalasi yang diunggah, tanpa zip source — supaya
+        # artifact langsung bisa di-flash tanpa pilih-pilih file.
         uses: actions/upload-artifact@v4
         with:
           name: taptapapp-go-${{ steps.ver.outputs.ver }}
-          path: src/dist/*.zip
+          path: src/dist/taptapapp-go-${{ steps.ver.outputs.ver }}.zip
           if-no-files-found: error
