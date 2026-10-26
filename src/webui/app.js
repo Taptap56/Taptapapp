@@ -1238,8 +1238,8 @@ function vAbout() {
     <div class="kv"><span>Versi</span><b>${esc((S.status.version || '').replace(/ \([^)]*\)$/, ''))}</b></div>
     <div class="kv"><span>Core</span><b>${(S.status.core === 'singbox') ? 'sing-box ' + (S.status.singbox_version || 'belum terpasang') + ' (aktif) · mihomo ' + (S.status.mihomo_version || 'belum terpasang') : 'mihomo ' + (S.status.mihomo_version || 'belum terpasang') + ' (aktif) · sing-box ' + (S.status.singbox_version || 'belum terpasang')}</b></div>
     <div class="kv"><span>Dashboard</span><b>zashboard</b></div>
-    <div class="kv"><span>Profil</span><a class="btn small primary" href="https://t.me/TapTap_56" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21l21-9L2 3v7l15 2-15 2z" fill="currentColor" stroke="none"/></svg>Telegram</a></div>
-    <div class="kv"><span>Grup</span><a class="btn small primary" href="https://t.me/Taptapapp_56" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21l21-9L2 3v7l15 2-15 2z" fill="currentColor" stroke="none"/></svg>Telegram</a></div>
+    <div class="kv"><span>Profil</span><a class="btn small primary" href="https://t.me/TapTap_56" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21l21-9L2 3v7l15 2-15 2z" transform="translate(12 12) rotate(-45) scale(0.85) translate(-12 -12)" fill="currentColor" stroke="none"/></svg>Telegram</a></div>
+    <div class="kv"><span>Grup</span><a class="btn small primary" href="https://t.me/Taptapapp_56" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21l21-9L2 3v7l15 2-15 2z" transform="translate(12 12) rotate(-45) scale(0.85) translate(-12 -12)" fill="currentColor" stroke="none"/></svg>Telegram</a></div>
     <div class="hint">Modul Magisk — transparent proxy TUN/iptables + WebUI.</div></div>
   <div class="card"><h3>Download</h3><div id="dlWrap"><div class="hint">Memeriksa versi baru…</div></div></div>`;
   loadUpdates(false);
