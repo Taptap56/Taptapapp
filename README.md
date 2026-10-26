@@ -23,7 +23,8 @@ tapi tidak ada core yang bisa di-start.
 2. Buka tab **Actions** → workflow **Build TaptapApp-Go** → **Run
    workflow**.
 3. Unduh artifact `taptapapp-go-v1.0.0` dari halaman run yang sukses.
-   Isinya dua zip: zip instalasi (siap flash) dan zip source (slim).
+   Isinya hanya zip instalasi (siap flash); zip source tidak ikut
+   diunggah, supaya artifact langsung bisa dipasang.
 
 Tidak ada GitHub Releases: unduhan hanya lewat artifact Actions.
 
