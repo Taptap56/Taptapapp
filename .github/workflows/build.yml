@@ -1,12 +1,17 @@
 name: Build TaptapApp-Go
 
 # Build manual saja (tombol Run workflow), seperti builder kernel.
-# Tidak ada GitHub Releases: hasil hanya lewat artifact Actions.
+# Hasil diterbitkan otomatis sebagai GitHub Release (bukan artifact):
+# tiap Run workflow membuat/memperbarui Release dengan tag = versi
+# dari src/module/module.prop, dan zip instalasi jadi aset Release-nya.
+# Catatan: tag yang sudah ada akan diperbarui asetnya, jadi Run ulang
+# dengan versi yang sama menimpa Release versi itu.
 on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # write diperlukan untuk membuat tag + Release + mengunggah asetnya.
+  contents: write
 
 jobs:
   build:
@@ -33,11 +38,17 @@ jobs:
         # jadi build ini tidak butuh aset eksternal apa pun.
         run: sh src/build.sh
 
-      - name: Upload install zip only
-        # Hanya zip instalasi yang diunggah, tanpa zip source — supaya
-        # artifact langsung bisa di-flash tanpa pilih-pilih file.
-        uses: actions/upload-artifact@v4
+      - name: Publish Release
+        # Hanya zip instalasi yang diterbitkan sebagai aset Release;
+        # zip source tidak ikut, supaya Release langsung bisa dipasang.
+        uses: softprops/action-gh-release@v2
         with:
-          name: taptapapp-go-${{ steps.ver.outputs.ver }}
-          path: src/dist/taptapapp-go-${{ steps.ver.outputs.ver }}.zip
-          if-no-files-found: error
+          tag_name: ${{ steps.ver.outputs.ver }}
+          name: TaptapApp-Go ${{ steps.ver.outputs.ver }}
+          body: |
+            Paket SLIM: core (sing-box, mihomo), geodata, zashboard, dan
+            scrcpy-server tidak dibundel. Sesudah flash, unduh semuanya
+            lewat kotak Download di menu Tentang WebUI, urutannya:
+            Core mihomo, Core sing-box, Geodata, Zashboard, Scrcpy.
+          files: src/dist/taptapapp-go-${{ steps.ver.outputs.ver }}.zip
+          fail_on_unmatched_files: true
