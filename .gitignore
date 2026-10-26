@@ -6,3 +6,6 @@ src/module/geodata/
 src/backend/taptapapp
 src/backend/taptapclash
 .DS_Store
+src/node_modules/
+src/package-lock.json
+src/package.json
