@@ -1,0 +1,8 @@
+# hasil build (dibuat ulang oleh src/build.sh, jangan di-commit)
+src/dist/
+src/module/bin/
+src/module/webui/
+src/module/geodata/
+src/backend/taptapapp
+src/backend/taptapclash
+.DS_Store
