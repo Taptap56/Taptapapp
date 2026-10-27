@@ -63,7 +63,7 @@ type Settings struct {
 	Hotspot          bool   `json:"hotspot"`
 	HotspotLockIP    bool   `json:"hotspot_lock_ip"`           // kunci IP interface hotspot ke HotspotIP
 	HotspotIP        string `json:"hotspot_ip"`                // IP hotspot (default 192.168.56.1)
-	MainGroupName    string `json:"main_group_name,omitempty"` // nama grup utama (default "🚀 Proxy"), bisa diubah user
+	MainGroupName    string `json:"main_group_name,omitempty"` // nama grup utama (default "Taptap"), bisa diubah user
 	FtpEnabled       bool   `json:"ftp_enabled"`               // FTP server untuk berbagi file via hotspot
 	FtpPort          int    `json:"ftp_port"`
 	FtpRoot          string `json:"ftp_root"`
@@ -156,7 +156,7 @@ func defaultSettings() Settings {
 		BlockAds:         false,
 		BypassPrivate:    true,
 		HealthURL:        healthDefault,
-		MainGroupName:    "🚀 Proxy",
+		MainGroupName:    "Taptap",
 		HotspotLockIP:    true,
 		HotspotIP:        "192.168.56.1",
 		FtpEnabled:       false,
@@ -181,6 +181,21 @@ func NewStore(dir string) *Store {
 	s := &Store{dir: dir, Settings: defaultSettings(), Builder: defaultBuilder()}
 	_ = os.MkdirAll(dir, 0755)
 	s.load("servers.json", &s.Servers)
+	// Segarkan link SSH dari Params saat load (2026-10-27, lanjutan
+	// perbaikan copy SSH): link lama yang tersimpan di servers.json
+	// dibuat sebelum buildSSHLink membawa ssh_*, dan Bagikan/Export
+	// memakai link tersimpan itu — jadi tanpa segarkan ini, copy
+	// server lama tetap kehilangan payload walau build baru sudah
+	// dipasang, kecuali servernya diedit & disimpan ulang dulu.
+	// Hanya SSH yang disegarkan: untuk protokol lain, link asli
+	// dipertahankan agar field yang tidak diparse tidak ikut hilang.
+	for i := range s.Servers {
+		if s.Servers[i].Proto == "ssh" {
+			if nl := buildLink("ssh", s.Servers[i].Params, s.Servers[i].Name); nl != "" {
+				s.Servers[i].Link = nl
+			}
+		}
+	}
 	s.load("subscriptions.json", &s.Subs)
 	// Jangan pernah biarkan nil: API harus mengirim [] bukan null (WebUI mengasumsikan array).
 	if s.Servers == nil {
@@ -225,7 +240,7 @@ func NewStore(dir string) *Store {
 		}
 		if st.Ver < 7 {
 			// v1.4.0: grup utama punya nama yang bisa diubah user
-			st.MainGroupName = "🚀 Proxy"
+			st.MainGroupName = "Taptap"
 			st.Ver = 7
 		}
 		if st.Ver < 8 {
