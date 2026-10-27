@@ -128,8 +128,16 @@ func serverToMihomoProxy(sv *Server, name string) map[string]any {
 		"port":   port,
 		"udp":    true,
 	}
-	applyMihomoTLS(p, px, sv.Proto)
-	applyMihomoTransport(p, px)
+	// SSH payload: sama seperti sing-box — core ke jembatan lokal, tanpa
+	// TLS/transport core (dipegang jembatan). Lihat sshbridge.go.
+	_, isBridge := sshPayloadProfile(sv)
+	if isBridge {
+		px["server"] = "127.0.0.1"
+		px["port"] = sshBridgePort
+	} else {
+		applyMihomoTLS(p, px, sv.Proto)
+		applyMihomoTransport(p, px)
+	}
 	switch sv.Proto {
 	case "vmess":
 		px["type"] = "vmess"
