@@ -54,6 +54,14 @@ jobs:
             service worker-nya tidak lagi menyimpan cache, jadi tidak
             ada lagi WebUI lama yang nyangkut.
 
+            Penambahan: BadVPN — UDP game/QUIC kini bisa lewat server
+            SSH (sebelumnya SSH hanya TCP, UDP selalu gagal). Aktifkan
+            di Pengaturan → BadVPN, isi port UDPGW server (default
+            7300), lalu Simpan & Terapkan. Syarat: server SSH harus
+            menjalankan badvpn-udpgw; bila tidak, log akan memberi
+            tahu dan UDP lewat SSH tetap tidak jalan. Hanya berlaku
+            untuk server SSH terpilih dan mode config OTOMATIS.
+
             ‼️ PENTING bagi yang sudah memasang versi sebelum ini:
             hapus data situs 2 kali sebelum memakai versi ini —
             (1) ketuk ikon ⓘ di address bar Chrome → "Cookie dan
