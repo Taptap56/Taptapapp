@@ -22,11 +22,12 @@ tapi tidak ada core yang bisa di-start.
 1. Unggah isi repo ini ke repo GitHub baru (branch `main`).
 2. Buka tab **Actions** → workflow **Build TaptapApp-Go** → **Run
    workflow**.
-3. Unduh artifact `taptapapp-go-v1.0.0` dari halaman run yang sukses.
-   Isinya hanya zip instalasi (siap flash); zip source tidak ikut
-   diunggah, supaya artifact langsung bisa dipasang.
+3. Sesudah run sukses, buka tab **Releases** di repo: Release dengan
+   tag versi (mis. `v1.0.0`) sudah terbit otomatis, dan asetnya hanya
+   zip instalasi (siap flash); zip source tidak ikut diterbitkan.
+   Run ulang dengan versi yang sama akan memperbarui Release itu.
 
-Tidak ada GitHub Releases: unduhan hanya lewat artifact Actions.
+Unduhan utama kini lewat GitHub Releases, bukan artifact Actions.
 
 ## Build lokal (opsional)
 
