@@ -43,13 +43,13 @@ import (
 
 // sshKEXInfo: daftar algoritma dari satu paket KEXINIT (msg type 20).
 type sshKEXInfo struct {
-	Banner   string
-	KEX      []string
-	HostKey  []string
+	Banner    string
+	KEX       []string
+	HostKey   []string
 	CipherC2S []string
 	CipherS2C []string
-	MACC2S   []string
-	MACS2C   []string
+	MACC2S    []string
+	MACS2C    []string
 }
 
 // parseSSHHandshake: banner + paket KEXINIT pertama dari data mentah
