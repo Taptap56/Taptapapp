@@ -106,12 +106,20 @@ button,input,select,textarea{font-family:inherit}
   background:rgba(255,255,255,.05);border:1px solid var(--line)}
 .srv .info{flex:1;min-width:0}
 .srv .nm{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.srv .meta{display:flex;align-items:center;gap:10px;margin-top:6px;min-width:0}
-.srv .meta .proto{margin-top:0}
+.srv .meta{display:flex;align-items:center;gap:10px;margin-top:6px;min-width:0;flex-wrap:nowrap}
+.srv .meta .proto{margin-top:0;flex:none}
 .srv .proto{display:inline-block;color:var(--warn);background:rgba(255,179,64,.12);border:1px solid rgba(255,179,64,.25);
   font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:2px 9px;border-radius:20px}
 .card h3 .proto{margin:0 0 0 8px}
-.srv .stat{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Kolom ping rata kanan: margin-left:auto mendorong ping ke tepi
+   kanan .info (yang lebarnya sama di semua kartu), jadi ping
+   sejajar atas-bawah walau lebar pill protokol beda-beda
+   (VMESS/TROJAN/VLESS/SSH). Lebar minimum + rata kanan membuat
+   "192ms" dan "Timeout" berakhir di garis yang sama. */
+.srv .stat{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;margin-left:auto;flex:none;min-width:64px;text-align:right}
+.srv button.stat{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:12px;padding:3px 9px;
+  cursor:pointer;color:inherit;font:inherit}
+.srv button.stat:active{background:rgba(255,255,255,.12);transform:scale(.95)}
 .srv .stat .ms{color:var(--green);font-weight:700}
 .srv .stat .bad{color:var(--red);font-weight:700}
 .srv .stat .traf{color:var(--mut);font-size:11px}
@@ -205,7 +213,7 @@ textarea{min-height:100px;font-family:ui-monospace,"SF Mono",Menlo,monospace;fon
 .kv>b{text-align:right;min-width:0}
 .kv[data-verlist] b{cursor:pointer;color:var(--acc);border:1px solid rgba(34,230,168,.35);border-radius:10px;padding:4px 10px}
 .kv[data-verlist] b::after{content:" ▾"}
-.lnks{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.lnks .btn{flex:1;min-width:0}
+.lnks{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.lnks .btn{flex:1 1 0;min-width:0;text-align:center}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:.05em;background:var(--mut)}
 .dot.on{background:var(--green);box-shadow:0 0 0 3px rgba(34,230,168,.16)}
 .dot.off{background:var(--red);box-shadow:0 0 0 3px rgba(255,93,108,.16)}
