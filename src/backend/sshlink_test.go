@@ -17,10 +17,10 @@ func TestSSHLinkRoundTrip(t *testing.T) {
 		"server": "akunvpn.nadia-lestari.my.id", "port": "80",
 		"username": "taptap", "password": "1234",
 		"ssh_payload_on": "1", "ssh_enhanced": "1",
-		"ssh_proxy":      "104.17.3.81:80",
-		"ssh_payload":    "HEAD / HTTP/1.1[crlf]Host: edu.ruangguru.com:80[crlf]Connection: Keep-Alive[crlf]User-Agent: [ua][crlf][crlf]BMOVE / HTTP/1.1[crlf]Host: [host][crlf]Upgrade: websocket[crlf][crlf]",
-		"ssh_mode":       "ws",
-		"ssh_tls":        "", "ssh_sni": "", "ssh_sni_ver": "", "ssh_insecure": "",
+		"ssh_proxy":   "104.17.3.81:80",
+		"ssh_payload": "HEAD / HTTP/1.1[crlf]Host: edu.ruangguru.com:80[crlf]Connection: Keep-Alive[crlf]User-Agent: [ua][crlf][crlf]BMOVE / HTTP/1.1[crlf]Host: [host][crlf]Upgrade: websocket[crlf][crlf]",
+		"ssh_mode":    "ws",
+		"ssh_tls":     "", "ssh_sni": "", "ssh_sni_ver": "", "ssh_insecure": "",
 	}
 	link := buildLink("ssh", p, "Edukasi")
 	sv, err := parseLink(link)
