@@ -42,7 +42,7 @@ import (
 
 // sshLogEntry: satu percobaan jembatan, dalam bahasa yang mudah dibaca.
 type sshLogEntry struct {
-	Time      string   `json:"time"`      // HH:MM:SS
+	Time      string   `json:"time"` // HH:MM:SS
 	ServerID  string   `json:"server_id"`
 	Name      string   `json:"name"`
 	Proxy     string   `json:"proxy"`
