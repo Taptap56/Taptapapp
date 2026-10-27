@@ -70,6 +70,21 @@ func (a *App) buildV2rayng() map[string]any {
 	}
 	outbounds = append(outbounds, gOut...)
 	outbounds = append(outbounds, map[string]any{"type": "direct", "tag": "DIRECT"})
+	// BadVPN: outbound SOCKS lokal untuk UDP + tag SSH terpilih.
+	// (Aturan-aturannya disisipkan di bawah; tanpa relay/tag, tidak ada
+	// aturan yang di-emit — config persis seperti sebelum BadVPN.)
+	var bvSocks, bvUdpgw int
+	var bvSSH string
+	var bvOk bool
+	// Gerbang ganda: relay jalan DAN toggle nyala DAN bukan manual.
+	// (Relay yatim dari startCore lama tidak boleh membocorkan aturan
+	// bila user sudah mematikan toggle tanpa restart.)
+	if sp, up, ok := a.badvpnCfg(); ok && st.Settings.BadvpnEnabled && !st.Settings.ManualConfig {
+		if tag, ok2 := a.badvpnSelectedSSH(built); ok2 {
+			bvSocks, bvUdpgw, bvSSH, bvOk = sp, up, tag, true
+			outbounds = append(outbounds, map[string]any{"type": "socks", "tag": badvpnTag, "server": "127.0.0.1", "server_port": bvSocks, "version": "5"})
+		}
+	}
 
 	bld := a.store.Builder
 	rules := []any{}
@@ -81,6 +96,12 @@ func (a *App) buildV2rayng() map[string]any {
 	}
 	// Blok QUIC kini di level netfilter (applyQUICBlock, semua mode non-tproxy),
 	// bukan lagi route rule — agar user config manual pun kebagian.
+	// BadVPN: stream TCP ke udpgw server HARUS ke SSH, bukan DIRECT —
+	// 127.0.0.1 adalah IP privat, jadi aturan ini mendahului aturan
+	// privat->DIRECT di bawah. Hanya port udpgw persis yang dicocokkan.
+	if bvOk {
+		rules = append(rules, map[string]any{"network": []string{"tcp"}, "ip_cidr": []string{"127.0.0.1/32"}, "port": []int{bvUdpgw}, "action": "route", "outbound": bvSSH})
+	}
 	if !bld.NoPrivateDirect {
 		rules = append(rules, map[string]any{"ip_is_private": true, "action": "route", "outbound": "DIRECT"})
 	}
@@ -229,6 +250,13 @@ func (a *App) buildV2rayng() map[string]any {
 			}
 			rules = append(rules, withAction(g, ob))
 		}
+	}
+	// BadVPN: sisa UDP (sesudah aturan user) ke relay lokal. DNS UDP
+	// (port 53) dikecualikan agar perilakunya persis seperti hari ini
+	// (ditangani DNS core / hijack, bukan dilempar ke udpgw).
+	if bvOk {
+		rules = append(rules, map[string]any{"network": []string{"udp"}, "port": []int{53}, "action": "route", "outbound": mg})
+		rules = append(rules, map[string]any{"network": []string{"udp"}, "ip_is_private": false, "action": "route", "outbound": badvpnTag})
 	}
 	// Rute akhir SELALU grup utama (satu-satunya final, seperti MATCH di
 	// TaptapClash). Aturan custom tanpa outbound eksplisit juga ke grup utama.
