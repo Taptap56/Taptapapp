@@ -50,7 +50,9 @@ type Settings struct {
 	DNSHijack        bool   `json:"dns_hijack"`
 	DNSUpstream      string `json:"dns_upstream"`
 	BlockQUIC        bool   `json:"block_quic"`
-	BlockIPv6        bool   `json:"block_ipv6"` // blokir IPv6 saat VPN aktif (anti-bocor; TaptapClash IPv4-only)
+	BadvpnEnabled    bool   `json:"badvpn_enabled"`    // UDP lewat SSH via BadVPN udpgw (hanya server SSH, mode OTOMATIS)
+	BadvpnUdpgwPort  int    `json:"badvpn_udpgw_port"` // port udpgw di server SSH (0 = 7300)
+	BlockIPv6        bool   `json:"block_ipv6"`        // blokir IPv6 saat VPN aktif (anti-bocor; TaptapClash IPv4-only)
 	BypassDomains    string `json:"bypass_domains"`
 	ProxyMode        string `json:"proxy_mode"` // tun | tproxy | iptables | mixed | enhance
 	TproxyPort       int    `json:"tproxy_port"`
