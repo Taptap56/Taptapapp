@@ -513,6 +513,10 @@ func parseAnyTLS(link string) (*Server, error) {
 }
 
 // ssh://user:password@host:port#name
+// Query ssh_* (ditulis buildSSHLink) dibaca kembali apa adanya,
+// supaya copy SSH tidak kehilangan payload/proxy/TLS/mode.
+// Query lain yang tidak dikenal diabaikan, jadi link SSH polos
+// dari aplikasi lain tetap bisa diimport seperti biasa.
 func parseSSH(link string) (*Server, error) {
 	u, err := url.Parse(link)
 	if err != nil {
@@ -523,6 +527,11 @@ func parseSSH(link string) (*Server, error) {
 		"server": u.Hostname(), "port": u.Port(),
 		"username": u.User.Username(), "password": pw,
 		"private_key": u.Query().Get("pk"),
+	}
+	for k, vs := range u.Query() {
+		if strings.HasPrefix(k, "ssh_") && len(vs) > 0 && vs[0] != "" {
+			p[k] = vs[0]
+		}
 	}
 	if p["port"] == "" {
 		p["port"] = "22"
