@@ -35,12 +35,12 @@ func TestSingleMatchLine(t *testing.T) {
 	if n != 1 {
 		t.Fatalf("harus tepat 1 baris MATCH, dapat %d: %v", n, rules)
 	}
-	if last := rules[len(rules)-1]; last != "MATCH,🚀 Proxy" {
+	if last := rules[len(rules)-1]; last != "MATCH,Taptap" {
 		t.Fatalf("MATCH akhir salah: %v", last)
 	}
 	// baris DST-PORT/PROCESS-NAME/NETWORK tetap ada sebagai pencocok
 	joined := strings.Join(rules, "\n")
-	for _, want := range []string{"DST-PORT,443,🚀 Proxy", "PROCESS-NAME,com.example.app,DIRECT", "NETWORK,UDP,🚀 Proxy"} {
+	for _, want := range []string{"DST-PORT,443,Taptap", "PROCESS-NAME,com.example.app,DIRECT", "NETWORK,UDP,Taptap"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("baris %q hilang", want)
 		}
@@ -273,7 +273,7 @@ rules:
 		t.Fatalf("hasil bukan YAML sah: %v", err)
 	}
 	rules, _ := parsed["rules"].([]any)
-	if len(rules) == 0 || rules[len(rules)-1] != "MATCH,🚀 Proxy" {
+	if len(rules) == 0 || rules[len(rules)-1] != "MATCH,Taptap" {
 		t.Fatalf("rules baru tidak ada / MATCH akhir salah: %v", rules)
 	}
 	// hasil tetap YAML sah
