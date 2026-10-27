@@ -42,11 +42,19 @@ type App struct {
 	verLastDetect time.Time // deteksi terakhir (untuk throttle status)
 	updMu         sync.Mutex
 	updCache      *latestCache // cache rilis terbaru (updates.go, TTL 1 jam)
+	selfRelCache  *selfRelCache // cache kartu Rilis terbaru (updates.go, TTL 1 jam, sama seperti Download)
 	updDlMu       sync.Mutex   // hanya satu unduhan/pemasangan dalam satu waktu
 	effMu         sync.Mutex
 	effMixedPort  int // port mixed yang didengar core yang jalan (manualinject.go)
 	helperUID     int // UID helper yang pernah berhasil (fetchhelper.go)
 	helperUIDMu   sync.Mutex
+	sshBridgeMu   sync.Mutex
+	sshBridgeLn   map[int]net.Listener
+	sshBridgeProf map[int]sshBridgeProfile
+	sshLogMu      sync.Mutex
+	sshLogEntries []sshLogEntry
+	sshLogW       *capLogWriter
+	sshKexLogged  map[string]bool // diagnostik KEX sekali per server/sisi (sshkex.go)
 	store         *Store
 
 	mu        sync.Mutex
@@ -424,6 +432,13 @@ func (a *App) handleExportServers(w http.ResponseWriter, r *http.Request) {
 		if link == "" {
 			link = buildLink(sv.Proto, sv.Params, sv.Name)
 		}
+		// SSH: selalu pakai link segar dari Params (lihat NewStore) —
+		// link tersimpan lama bisa dibuat sebelum ssh_* ikut di link.
+		if sv.Proto == "ssh" {
+			if nl := buildLink("ssh", sv.Params, sv.Name); nl != "" {
+				link = nl
+			}
+		}
 		if link == "" {
 			continue
 		}
@@ -759,6 +774,10 @@ func (a *App) handleTestServers(w http.ResponseWriter, r *http.Request) {
 			switch {
 			case kind == "tcp" && udpBased(t.Proto):
 				d = -3 // protokol UDP: TCP ping tidak bermakna
+			case kind == "tcp" && t.Proto == "ssh":
+				// SSH payload tidak boleh TCP ping langsung (lihat sshTestPing):
+				// host SSH bukan tujuan yang bisa didial langsung.
+				d = a.sshTestPing(t.ID, t.Host, t.Port)
 			case kind == "tcp":
 				d = tcpPing(t.Host, t.Port, 4*time.Second)
 			case t.Tag == "":
@@ -1716,6 +1735,9 @@ func (a *App) handleLogs(w http.ResponseWriter, r *http.Request) {
 	if typ == "singbox" {
 		name = "sing-box.log"
 	}
+	if typ == "ssh" {
+		name = "ssh.log"
+	}
 	data, _ := os.ReadFile(filepath.Join(a.logDir, name))
 	ls := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
 	if len(ls) > lines {
@@ -1851,6 +1873,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/status", a.handleStatus)
 	mux.HandleFunc("/api/updates", a.handleUpdates)
+	mux.HandleFunc("/api/release/latest", a.handleSelfRelease)
 	mux.HandleFunc("/api/updates/versions", a.handleUpdateVersions)
 	mux.HandleFunc("/api/updates/download", a.handleUpdateDownload)
 	mux.HandleFunc("/api/hotspot", a.handleHotspotStatus)
@@ -1910,6 +1933,7 @@ func main() {
 	mux.HandleFunc("/api/backup", a.handleBackup)
 	mux.HandleFunc("/api/select", a.handleSelect)
 	mux.HandleFunc("/api/logs", a.handleLogs)
+	mux.HandleFunc("/api/ssh-log", a.handleSSHLog)
 	mux.HandleFunc("/api/scrcpy/status", a.handleScrcpyStatus)
 	mux.HandleFunc("/api/scrcpy/config", a.handleScrcpyConfig)
 	mux.HandleFunc("/api/scrcpy/start", a.handleScrcpyStart)
@@ -1921,6 +1945,18 @@ func main() {
 	// WebUI utama di /taptapapp/ (scope PWA sendiri, tak seri dengan modul lain
 	// di 127.0.0.1) + fallback SPA. API tetap di /api/*.
 	mux.HandleFunc("/taptapapp/", func(w http.ResponseWriter, r *http.Request) {
+		// WebUI TIDAK BOLEH di-cache browser (2026-10-27): penyebab
+		// fitur yang dihapus masih "nyangkut" adalah Chrome memakai
+		// salinan lama app.js/style.css/index.html/sw.js — backend
+		// dulu tidak mengirim Cache-Control, sw.js dan app.js?v=
+		// tidak pernah berubah di semua build. no-store di sini +
+		// token per-build di build.sh (marker versi SW & ?v= app.js)
+		// + SW network-only (tanpa cache sama sekali) membuat WebUI
+		// selalu segar tiap flash/reboot tanpa hapus data situs
+		// manual lagi, dan tidak ada lagi yang tertinggal sesudah
+		// uninstall. Hanya WebUI TaptapApp yang no-store;
+		// zashboard di "/" tidak disentuh.
+		w.Header().Set("Cache-Control", "no-store")
 		rel := strings.TrimPrefix(r.URL.Path, "/taptapapp")
 		if rel == "" || rel == "/" {
 			http.ServeFile(w, r, filepath.Join(a.webuiDir, "index.html"))
@@ -2123,6 +2159,9 @@ func (a *App) startCore() error {
 		return fmt.Errorf("core %s belum terpasang — unduh dulu lewat Tentang → Download", name)
 	}
 	var err error
+	// Jembatan SSH harus sudah jalan SEBELUM core dial ke 127.0.0.1:15411+
+	// (config server SSH payload menunjuk ke sana).
+	a.syncSSHbridge()
 	if active == "singbox" {
 		err = a.startSingbox()
 	} else {
@@ -2139,6 +2178,7 @@ func (a *App) startCore() error {
 // stopCore menghentikan core yang SEDANG berjalan (runningCore), bukan
 // mengikuti setting yang mungkin baru saja diganti user.
 func (a *App) stopCore() {
+	a.stopSSHbridge()
 	switch a.runningCore {
 	case "singbox":
 		a.stopSingbox()
