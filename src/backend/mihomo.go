@@ -434,6 +434,20 @@ func (a *App) buildMihomoMap() (map[string]any, error) {
 	for _, xp := range extraProxies {
 		proxies = append(proxies, xp)
 	}
+	// BadVPN: proxy SOCKS5 lokal untuk UDP (tidak masuk grup utama —
+	// hanya dirujuk aturan NETWORK,UDP di bawah). Untuk mihomo, Tag
+	// builtServer sama dengan nama proxy (serverToMihomoProxy memakai
+	// tag sebagai name), jadi bvSSH bisa dipakai langsung sebagai nama.
+	var bvSocks, bvUdpgw int
+	var bvSSH string
+	var bvOk bool
+	// Gerbang ganda: relay jalan DAN toggle nyala DAN bukan manual.
+	if sp, up, ok := a.badvpnCfg(); ok && st.BadvpnEnabled && !st.ManualConfig {
+		if tag, ok2 := a.badvpnSelectedSSH(built); ok2 {
+			bvSocks, bvUdpgw, bvSSH, bvOk = sp, up, tag, true
+			proxies = append(proxies, map[string]any{"name": badvpnTag, "type": "socks5", "server": "127.0.0.1", "port": bvSocks, "udp": true})
+		}
+	}
 	groups := []any{}
 	mainMembers := []string{}
 	for _, b := range built {
@@ -459,6 +473,14 @@ func (a *App) buildMihomoMap() (map[string]any, error) {
 
 	// ---- rules ----
 	rules := []string{}
+	// BadVPN: stream TCP ke udpgw server HARUS ke SSH. Ditaruh paling
+	// atas karena 127.0.0.1 akan ditangkap aturan privat->DIRECT bila
+	// aturan ini di bawahnya. Catatan: DST-PORT juga menangkap UDP
+	// port udpgw persis (game di UDP port itu akan ke SSH, bukan ke
+	// relay) — praktis tidak terjadi, port game bukan port udpgw.
+	if bvOk {
+		rules = append(rules, "DST-PORT,"+strconv.Itoa(bvUdpgw)+","+bvSSH)
+	}
 	// geodata (geoip.dat/geosite.dat yang di-bundle): aktif bila file ada.
 	geoOK := a.geodataReady()
 	// bypass IP private/lokal via GEOIP (aman & standar: LAN tidak perlu proxy)
@@ -585,6 +607,10 @@ func (a *App) buildMihomoMap() (map[string]any, error) {
 		"IP-CIDR6,fc00::/7,DIRECT,no-resolve",
 		"IP-CIDR6,fe80::/10,DIRECT,no-resolve",
 	)
+	// BadVPN: sisa UDP (sesudah aturan user & privat->DIRECT) ke relay.
+	if bvOk {
+		rules = append(rules, "NETWORK,UDP,"+badvpnTag)
+	}
 	// MATCH hanya satu baris di paling akhir: selalu grup utama.
 	// (Pilihan "rute akhir" dihapus — satu match, satu grup utama.)
 	rules = append(rules, "MATCH,"+mg)
