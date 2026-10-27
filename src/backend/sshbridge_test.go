@@ -512,7 +512,7 @@ func TestSSHTestPingBanner(t *testing.T) {
 		"server": "ssh.example", "port": "80", "username": "u", "password": "p",
 		"ssh_payload_on": "1", "ssh_proxy": proxy,
 		"ssh_payload": "GET / HTTP/1.1[crlf]Host: [host][crlf]Upgrade: websocket[crlf][crlf]",
-		"ssh_mode": "raw",
+		"ssh_mode":    "raw",
 	}}
 	a := &App{store: &Store{Servers: []Server{sv}}}
 	if ms := a.sshTestPing("teskan", "ssh.example", "80"); ms <= 0 {
@@ -528,7 +528,10 @@ func TestSSHTestPingBanner(t *testing.T) {
 }
 
 func TestDetectSSHFraming(t *testing.T) {
-	cases := []struct{ in []byte; want string }{
+	cases := []struct {
+		in   []byte
+		want string
+	}{
 		{[]byte("SSH-"), "raw"},
 		{[]byte("SSH-2"), "raw"},
 		{[]byte{0x82, 0x05, 'a', 'b'}, "ws"},
