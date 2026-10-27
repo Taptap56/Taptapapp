@@ -36,12 +36,12 @@ func (a *App) cfg() Settings {
 }
 
 // mainGroupTag: tag grup utama. Namanya bisa diubah user (Pengaturan/Grup);
-// default "🚀 Proxy". Selalu non-kosong dan tidak menabrak tag khusus.
+// default "Taptap". Selalu non-kosong dan tidak menabrak tag khusus.
 func (a *App) mainGroupTag() string {
 	if t := strings.TrimSpace(a.store.Settings.MainGroupName); t != "" {
 		return t
 	}
-	return "🚀 Proxy"
+	return "Taptap"
 }
 
 // reservedTags: tag yang tidak boleh dipakai oleh server / grup custom.
@@ -78,6 +78,22 @@ func (a *App) buildServers() []builtServer {
 	for _, t := range a.groupTags(a.store.Builder.Groups) {
 		used[t] = true
 	}
+	// Port jembatan per server SSH payload (dihitung sekali, dipakai
+	// semua outbound di bawah + listener di syncSSHbridge).
+	bridgePorts, _ := a.sshBridgeAssignmentsLocked()
+	applyBridgePort := func(ob map[string]any, sv *Server) {
+		port, ok := bridgePorts[sv.ID]
+		if !ok || ob == nil {
+			return
+		}
+		ob["server"] = "127.0.0.1"
+		if _, ok := ob["server_port"]; ok {
+			ob["server_port"] = port
+		}
+		if _, ok := ob["port"]; ok {
+			ob["port"] = port
+		}
+	}
 	out := []builtServer{}
 	for i := range a.store.Servers {
 		sv := &a.store.Servers[i]
@@ -95,6 +111,7 @@ func (a *App) buildServers() []builtServer {
 				a.logOnce(sv.ID+"|proto", "server %q dilewati: protokol %q tidak didukung", sv.Name, sv.Proto)
 				continue
 			}
+			applyBridgePort(ob, sv)
 			used[tag] = true
 			out = append(out, builtServer{ID: sv.ID, Tag: tag, Ob: ob, Ep: ep})
 			continue
@@ -108,6 +125,7 @@ func (a *App) buildServers() []builtServer {
 			a.logOnce(sv.ID+"|proto", "server %q dilewati: protokol %q tidak didukung", sv.Name, sv.Proto)
 			continue
 		}
+		applyBridgePort(ob, sv)
 		used[tag] = true
 		out = append(out, builtServer{ID: sv.ID, Tag: tag, Ob: ob})
 	}
