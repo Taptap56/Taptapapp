@@ -1172,6 +1172,11 @@ function vSettings() {
     <div><label class="lbl">Port Clash API</label><input id="sCPort" type="number" value="${s.clash_port || 9090}"></div></div>
     <label class="lbl">Secret Clash API (kosong = tanpa password)</label><input id="sSecret" value="${esc(s.secret || '')}">
 
+    <div class="sect">BadVPN (UDP lewat SSH)</div>
+    <label class="chk"><div class="t">UDP lewat SSH via BadVPN<small>untuk server SSH saja (game/QUIC); butuh badvpn-udpgw jalan di server SSH</small></div><input type="checkbox" id="sBadvpn" ${s.badvpn_enabled ? 'checked' : ''}></label>
+    <label class="lbl">Port UDPGW server</label><input id="sBadvpnPort" type="number" value="${s.badvpn_udpgw_port || 7300}">
+    <div class="hint">Hanya berlaku bila server terpilih berprotokol SSH dan mode config OTOMATIS (bukan MANUAL). Di mode iptables (REDIRECT TCP saja) UDP tidak lewat core sehingga tidak berlaku. Simpan & Terapkan agar core restart dengan aturan baru; log BadVPN ada di Logs.</div>
+
     <div class="sect">Lainnya</div>
     <label class="lbl">URL tes koneksi</label><input id="sHealth" value="${esc(s.health_url || '')}">
     <label class="chk"><div class="t">Auto-test berkala<small>tiap 3 menit, hanya saat WebUI sedang dibuka (hemat baterai)</small></div><input type="checkbox" id="sAT" ${s.auto_test ? 'checked' : ''}></label>
@@ -1193,6 +1198,7 @@ function vSettings() {
     secret: $('#sSecret').value, health_url: $('#sHealth').value.trim(),
     auto_test: $('#sAT').checked, block_quic: $('#sQuic').checked,
     log_level: $('#sLog').value,
+    badvpn_enabled: $('#sBadvpn').checked, badvpn_udpgw_port: +$('#sBadvpnPort').value || 7300,
   });
   const modeHints = {
     tun: 'Semua trafik lewat tun0.',
