@@ -59,6 +59,9 @@ const updateCacheTTL = time.Hour
 // yang ditawarkan ke pemilih versi.
 type ghRelease struct {
 	TagName     string `json:"tag_name"`
+	Name        string `json:"name"`
+	Body        string `json:"body"`
+	HTMLURL     string `json:"html_url"`
 	PublishedAt string `json:"published_at"`
 	Draft       bool   `json:"draft"`
 	Prerelease  bool   `json:"prerelease"`
@@ -547,6 +550,97 @@ func (a *App) handleUpdates(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, a.checkUpdates(r.URL.Query().Get("refresh") == "1"))
+}
+
+// selfRelease: respons GET /api/release/latest — kartu "Rilis terbaru"
+// di Tentang. Repo-nya repo modul ini sendiri (Taptap56/Taptapapp),
+// bukan repo core: tag/nama/tanggal/body/URL halaman rilis diambil dari
+// GitHub releases/latest lewat rantai yang sama dengan cek core
+// (proksi core -> helper non-root -> direct), jadi jalan di jalur yang
+// sama dengan kotak Download. Aset yang ditawarkan = zip instalasi
+// (taptapapp-go-<tag>.zip bila ada, kalau tidak aset .zip pertama);
+// Source code (zip/tar.gz) yang selalu ditambahkan GitHub TIDAK
+// ditawarkan — itu arsip source repo, bukan paket instalasi.
+// Gagal cek TIDAK jadi 500: WebUI tetap menampilkan tombol fallback
+// ke https://github.com/Taptap56/Taptapapp/releases/latest, yang
+// selalu meneruskan ke rilis terbaru.
+type selfRelease struct {
+	Current     string `json:"current"`
+	Tag         string `json:"tag"`
+	Name        string `json:"name"`
+	PublishedAt string `json:"published_at"`
+	Body        string `json:"body"`
+	HTMLURL     string `json:"html_url"`
+	AssetName   string `json:"asset_name"`
+	AssetSize   int64  `json:"asset_size"`
+	AssetURL    string `json:"asset_url"`
+	Error       string `json:"error,omitempty"`
+}
+
+// selfRelCache: cache kartu Rilis terbaru, mirip updCache di kotak
+// Download: buka Tentang berulang dalam 1 jam tidak perlu fetch
+// GitHub lagi (itu penyebab kartu Rilis selalu loading tiap dibuka),
+// dan tombol Periksa lagi memaksa cek segar lewat ?refresh=1.
+type selfRelCache struct {
+	at  time.Time
+	out selfRelease
+}
+
+func (a *App) handleSelfRelease(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		errJSON(w, 405, "method tidak didukung")
+		return
+	}
+	force := r.URL.Query().Get("refresh") == "1"
+	if !force {
+		a.updMu.Lock()
+		cached := a.selfRelCache
+		a.updMu.Unlock()
+		if cached != nil && time.Since(cached.at) < updateCacheTTL {
+			writeJSON(w, cached.out)
+			return
+		}
+	}
+	rel, err := a.fetchRelease("Taptap56/Taptapapp")
+	if err != nil {
+		out := selfRelease{Current: appVersion, Error: err.Error()}
+		a.updMu.Lock()
+		a.selfRelCache = &selfRelCache{at: time.Now(), out: out}
+		a.updMu.Unlock()
+		writeJSON(w, out)
+		return
+	}
+	out := selfRelease{
+		Current:     appVersion,
+		Tag:         rel.TagName,
+		Name:        rel.Name,
+		PublishedAt: rel.PublishedAt,
+		Body:        rel.Body,
+		HTMLURL:     rel.HTMLURL,
+	}
+	want := "taptapapp-go-" + rel.TagName + ".zip"
+	for _, as := range rel.Assets {
+		if as.Name == want {
+			out.AssetName, out.AssetSize, out.AssetURL = as.Name, as.Size, as.BrowserDownloadURL
+			break
+		}
+	}
+	if out.AssetURL == "" {
+		for _, as := range rel.Assets {
+			if strings.HasSuffix(as.Name, ".zip") && strings.HasPrefix(as.Name, "taptapapp-go-") {
+				out.AssetName, out.AssetSize, out.AssetURL = as.Name, as.Size, as.BrowserDownloadURL
+				break
+			}
+		}
+	}
+	if out.AssetURL == "" && len(rel.Assets) > 0 {
+		as := rel.Assets[0]
+		out.AssetName, out.AssetSize, out.AssetURL = as.Name, as.Size, as.BrowserDownloadURL
+	}
+	a.updMu.Lock()
+	a.selfRelCache = &selfRelCache{at: time.Now(), out: out}
+	a.updMu.Unlock()
+	writeJSON(w, out)
 }
 
 // downloadViaHTTP: satu unduhan lewat klien HTTP (proksi/direct).
