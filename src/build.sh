@@ -68,6 +68,25 @@ chmod 755 module/bin/arm64/*
 echo "== webui =="
 rm -rf module/webui
 cp -r webui module/webui
+# Token anti-cache per-build (2026-10-27, diubah 2026-10-27: SW kini
+# network-only, jadi token di sw.js bukan lagi nama cache melainkan
+# marker versi SW_VERSION): fitur yang dihapus kadang "nyangkut"
+# karena sw.js dan app.js?v= tidak pernah berubah di semua build,
+# jadi Chrome mengira tidak ada update. Token = hash isi file WebUI
+# (berubah tiap ada tambah/hapus/ubah fitur, sama bila isi sama) —
+# disisipkan HANYA ke salinan paket (module/webui), bukan ke source,
+# supaya build dari source zip di GitHub pun menghasilkan tokennya
+# sendiri. Bersama header no-store di backend, WebUI selalu segar
+# tiap flash tanpa hapus data situs, dan SW baru tiap build memicu
+# activate yang menghapus sisa cache taptapapp-* dari SW lama.
+if command -v sha256sum >/dev/null 2>&1; then
+  WEBUI_TOKEN=$(cat webui/app.js webui/style.css webui/index.html webui/sw.js | sha256sum | cut -c1-12)
+  sed -i "s/taptapapp-v1/taptapapp-$WEBUI_TOKEN/" module/webui/sw.js
+  sed -i "s|app.js?v=1.0.0|app.js?v=$WEBUI_TOKEN|" module/webui/index.html
+  echo "webui token: $WEBUI_TOKEN"
+else
+  echo "sha256sum tidak ada — token WebUI dilewati (no-store backend tetap berlaku)"
+fi
 if [ "$FULL" = "1" ]; then
   echo "== webui: +zashboard bawaan (hanya FULL) =="
   mkdir -p module/webui/zashboard
