@@ -130,7 +130,7 @@ func TestBuilderRulesMihomo(t *testing.T) {
 	if !strings.Contains(joined, "DOMAIN-SUFFIX,ads.example.com,REJECT") {
 		t.Errorf("rule DOMAIN-SUFFIX hilang")
 	}
-	if !strings.HasSuffix(strings.TrimSpace(joined[strings.LastIndex(joined, "MATCH,"):]), "MATCH,🚀 Proxy") {
+	if !strings.HasSuffix(strings.TrimSpace(joined[strings.LastIndex(joined, "MATCH,"):]), "MATCH,Taptap") {
 		t.Errorf("rule terakhir harus MATCH grup utama")
 	}
 	provs, _ := cfg["rule-providers"].(map[string]any)
@@ -249,7 +249,7 @@ func TestCustomGroups(t *testing.T) {
 	rules := cfg["rules"].([]string)
 	last := rules[len(rules)-1]
 	// MATCH akhir selalu grup utama (pilihan "rute akhir" dihapus).
-	if last != "MATCH,🚀 Proxy" {
+	if last != "MATCH,Taptap" {
 		t.Fatalf("final salah: %v", last)
 	}
 }
@@ -273,7 +273,7 @@ func TestMainGroupRename(t *testing.T) {
 	if sel["type"] != "select" {
 		t.Fatalf("grup utama harus select, dapat %v", sel["type"])
 	}
-	if have["🚀 Proxy"] != nil {
+	if have["Taptap"] != nil {
 		t.Fatal("tag lama masih ada")
 	}
 	rules := cfg["rules"].([]string)
