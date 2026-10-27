@@ -56,8 +56,8 @@ import (
 	"io"
 	"net"
 	"sort"
-	"sync"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -534,8 +534,8 @@ func readSSHWSFrame(r io.Reader) (byte, []byte, error) {
 //     diterima (101), framing WS/pipa cocok, DAN ujungnya memang
 //     server SSH. Yang tidak dibuktikan banner: user/password benar
 //     atau tidak — itu baru ketahuan saat core login SSH.
-//   Mengembalikan ms (dari mulai dial sampai banner diterima) atau -1.
-//   Hasil tes juga dicatat di ssh.log agar bisa dibaca di Logs > SSH.
+//     Mengembalikan ms (dari mulai dial sampai banner diterima) atau -1.
+//     Hasil tes juga dicatat di ssh.log agar bisa dibaca di Logs > SSH.
 func (a *App) sshTestPing(serverID, host, port string) int {
 	a.store.mu.RLock()
 	sv := a.store.findServer(serverID)
