@@ -41,9 +41,9 @@ type App struct {
 	verMu         sync.RWMutex
 	verLastDetect time.Time // deteksi terakhir (untuk throttle status)
 	updMu         sync.Mutex
-	updCache      *latestCache // cache rilis terbaru (updates.go, TTL 1 jam)
+	updCache      *latestCache  // cache rilis terbaru (updates.go, TTL 1 jam)
 	selfRelCache  *selfRelCache // cache kartu Rilis terbaru (updates.go, TTL 1 jam, sama seperti Download)
-	updDlMu       sync.Mutex   // hanya satu unduhan/pemasangan dalam satu waktu
+	updDlMu       sync.Mutex    // hanya satu unduhan/pemasangan dalam satu waktu
 	effMu         sync.Mutex
 	effMixedPort  int // port mixed yang didengar core yang jalan (manualinject.go)
 	helperUID     int // UID helper yang pernah berhasil (fetchhelper.go)
@@ -55,6 +55,8 @@ type App struct {
 	sshLogEntries []sshLogEntry
 	sshLogW       *capLogWriter
 	sshKexLogged  map[string]bool // diagnostik KEX sekali per server/sisi (sshkex.go)
+	bvMu          sync.Mutex
+	bv            *badvpnRelay // relay BadVPN (nil bila nonaktif; lihat badvpn.go)
 	store         *Store
 
 	mu        sync.Mutex
@@ -1192,7 +1194,8 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		ns.Secret != old.Secret || ns.BlockAds != old.BlockAds ||
 		ns.HealthURL != old.HealthURL ||
 		ns.MainGroupName != old.MainGroupName || ns.LogLevel != old.LogLevel ||
-		ns.WebListenAll != old.WebListenAll
+		ns.WebListenAll != old.WebListenAll ||
+		ns.BadvpnEnabled != old.BadvpnEnabled || ns.BadvpnUdpgwPort != old.BadvpnUdpgwPort
 	if needRestart && !coreSwitched && a.coreAlive() {
 		a.stopCore()
 		time.Sleep(time.Second)
@@ -2162,10 +2165,18 @@ func (a *App) startCore() error {
 	// Jembatan SSH harus sudah jalan SEBELUM core dial ke 127.0.0.1:15411+
 	// (config server SSH payload menunjuk ke sana).
 	a.syncSSHbridge()
+	// Relay BadVPN harus sudah jalan SEBELUM config di-generate, karena
+	// config memakai port SOCKS/UDP-nya (bind acak, bukan port tetap).
+	a.startBadvpn()
 	if active == "singbox" {
 		err = a.startSingbox()
 	} else {
 		err = a.startMihomo()
+	}
+	if err != nil && !a.coreAlive() {
+		// Core gagal nyala: jangan sisakan relay yatim. Bila core masih
+		// hidup (start ganda), relay dibiarkan — core itu memakainya.
+		a.stopBadvpn()
 	}
 	if err == nil {
 		// Core baru jalan (mungkin binernya baru diganti): segarkan
@@ -2191,6 +2202,8 @@ func (a *App) stopCore() {
 			a.stopMihomo()
 		}
 	}
+	// Relay dimatikan sesudah core (stream udpgw-nya lewat core).
+	a.stopBadvpn()
 }
 
 // mihomoAlive: nama lama dari coreAlive (dipertahankan untuk kompat).
