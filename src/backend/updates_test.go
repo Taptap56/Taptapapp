@@ -1095,3 +1095,58 @@ func TestCheckUpdatesZashboard(t *testing.T) {
 		t.Fatalf("lebih lama harus update: %+v", d.Zashboard)
 	}
 }
+
+func TestHandleSelfReleaseFakeGitHub(t *testing.T) {
+	f := newFakeGitHub(t)
+	f.tags["Taptap56/Taptapapp"] = "v1.0.0"
+	f.assets["/assets/taptapapp-go-v1.0.0.zip"] = []byte("zip-palsu")
+	old := githubAPI
+	githubAPI = f.srv.URL
+	t.Cleanup(func() { githubAPI = old })
+
+	a := &App{dataDir: t.TempDir()}
+	req := httptest.NewRequest("GET", "/api/release/latest", nil)
+	rec := httptest.NewRecorder()
+	a.handleSelfRelease(rec, req)
+	body := rec.Body.String()
+	if rec.Code != 200 {
+		t.Fatalf("status %d, body %s", rec.Code, body)
+	}
+	if !strings.Contains(body, `"tag":"v1.0.0"`) || !strings.Contains(body, "taptapapp-go-v1.0.0.zip") {
+		t.Fatalf("rilis sendiri harus memuat tag + aset zip: %s", body)
+	}
+	if strings.Contains(body, `"error"`) {
+		t.Fatalf("tidak boleh ada error: %s", body)
+	}
+}
+
+func TestHandleSelfReleaseCacheRefresh(t *testing.T) {
+	f := newFakeGitHub(t)
+	f.tags["Taptap56/Taptapapp"] = "v1.0.0"
+	f.assets["/assets/taptapapp-go-v1.0.0.zip"] = []byte("zip-palsu")
+	old := githubAPI
+	githubAPI = f.srv.URL
+	t.Cleanup(func() { githubAPI = old })
+	a := &App{dataDir: t.TempDir()}
+	call := func(url string) string {
+		req := httptest.NewRequest("GET", url, nil)
+		rec := httptest.NewRecorder()
+		a.handleSelfRelease(rec, req)
+		if rec.Code != 200 {
+			t.Fatalf("status %d", rec.Code)
+		}
+		return rec.Body.String()
+	}
+	if got := call("/api/release/latest"); !strings.Contains(got, `"tag":"v1.0.0"`) {
+		t.Fatalf("panggilan pertama harus v1.0.0: %s", got)
+	}
+	// Tag berubah di server, tapi cache 1 jam masih mengembalikan yang lama.
+	f.tags["Taptap56/Taptapapp"] = "v1.0.1"
+	if got := call("/api/release/latest"); !strings.Contains(got, `"tag":"v1.0.0"`) {
+		t.Fatalf("panggilan kedua harus dari cache v1.0.0, dapat %s", got)
+	}
+	// Periksa lagi memaksa cek segar, seperti Download.
+	if got := call("/api/release/latest?refresh=1"); !strings.Contains(got, `"tag":"v1.0.1"`) {
+		t.Fatalf("refresh harus v1.0.1, dapat %s", got)
+	}
+}
