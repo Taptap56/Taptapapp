@@ -46,6 +46,23 @@ jobs:
           tag_name: ${{ steps.ver.outputs.ver }}
           name: TaptapApp-Go ${{ steps.ver.outputs.ver }}
           body: |
+            Penambahan: SSH gaya HTTP Custom — akun SSH kini bisa pakai
+            payload, proxy jarak jauh, TLS + SNI, dan mode WebSocket /
+            Pipa mentah, lewat jembatan lokal di daemon. Copy SSH kini
+            membawa semua setingan (payload, proxy, mode, TLS), bukan
+            cuma akunnya. WebUI juga selalu segar tiap flash dan
+            service worker-nya tidak lagi menyimpan cache, jadi tidak
+            ada lagi WebUI lama yang nyangkut.
+
+            ‼️ PENTING bagi yang sudah memasang versi sebelum ini:
+            hapus data situs 2 kali sebelum memakai versi ini —
+            (1) ketuk ikon ⓘ di address bar Chrome → "Cookie dan
+            data situs" → ikon tong sampah, dan (2) Setelan Chrome →
+            Privasi dan keamanan → "Hapus data penjelajahan" →
+            centang "Cookie dan data situs" → "Hapus data". Sesudah
+            itu buka WebUI sekali; mulai dari versi ini WebUI akan
+            selalu segar sendiri tanpa hapus manual lagi.
+
             Paket SLIM: core (sing-box, mihomo), geodata, zashboard, dan
             scrcpy-server tidak dibundel. Sesudah flash, unduh semuanya
             lewat kotak Download di menu Tentang WebUI, urutannya:
