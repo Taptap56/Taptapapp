@@ -15,6 +15,11 @@ async function api(path, method = 'GET', body) {
   return j;
 }
 function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.remove('hidden'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.add('hidden'), 2200); }
+// coreName: nama core aktif untuk pemberitahuan — 'sing-box' bila
+// core sing-box, 'mihomo' bila core mihomo. Jangan hardcode 'mihomo'
+// di pemberitahuan generik (restart, simpan, validasi), karena saat
+// sing-box aktif pemberitahuan itu salah dan membingungkan.
+function coreName() { return (S.settings && S.settings.core === 'singbox') || (S.status && S.status.core === 'singbox') ? 'sing-box' : 'mihomo'; }
 function modal(title, html) { $('#modalTitle').textContent = title; $('#modalBody').innerHTML = html; $('#modal').classList.remove('hidden'); }
 $('#modalX').onclick = () => $('#modal').classList.add('hidden');
 
@@ -235,11 +240,16 @@ function flagOf(name) {
   const m = name.match(/🇦🇱|🇩🇿|🇦🇷|🇦🇲|🇦🇺|🇦🇹|🇦🇿|🇧🇭|🇧🇩|🇧🇾|🇧🇪|🇧🇷|🇧🇬|🇰🇭|🇨🇲|🇨🇦|🇨🇱|🇨🇳|🇨🇴|🇨🇷|🇭🇷|🇨🇺|🇨🇾|🇨🇿|🇩🇰|🇪🇬|🇪🇪|🇪🇹|🇫🇮|🇫🇷|🇬🇪|🇩🇪|🇬🇭|🇬🇷|🇭🇰|🇭🇺|🇮🇸|🇮🇳|🇮🇩|🇮🇷|🇮🇶|🇮🇪|🇮🇱|🇮🇹|🇯🇵|🇰🇿|🇰🇪|🇰🇷|🇰🇼|🇱🇻|🇱🇧|🇱🇹|🇱🇺|🇲🇾|🇲🇽|🇲🇩|🇲🇳|🇲🇦|🇲🇲|🇳🇵|🇳🇱|🇳🇿|🇳🇬|🇲🇰|🇳🇴|🇵🇰|🇵🇭|🇵🇱|🇵🇹|🇶🇦|🇷🇴|🇷🇺|🇸🇦|🇸🇬|🇿🇦|🇪🇸|🇱🇰|🇸🇪|🇨🇭|🇹🇼|🇹🇭|🇹🇷|🇺🇦|🇦🇪|🇬🇧|🇺🇸|🇺🇿|🇻🇳|🇾🇪/);
   return m ? m[0] : '🌐';
 }
+// Ping di daftar Server bisa ditekan, seperti di zashboard:
+// ketuk angka ping (atau Timeout / -) untuk tes ulang server itu
+// saja, tanpa tes semua. Tombol ini ditangani di onclick
+// vServersList lewat data-act="ping" — ketuk ping TIDAK memilih
+// server, hanya mengetesnya.
 function statHtml(s) {
-  if (s.delay_ms === -2) return '<div class="stat"><span class="mut">-</span></div>';
-  if (s.delay_ms === -1) return '<div class="stat"><span class="bad">Timeout</span></div>';
-  if (s.delay_ms === -3) return '<div class="stat"><span class="bad">Unavailable</span></div>';
-  return `<div class="stat"><span class="ms">${s.delay_ms}ms</span></div>`;
+  if (s.delay_ms === -2) return '<button class="stat" data-act="ping" title="Ketuk untuk tes ulang server ini"><span class="mut">-</span></button>';
+  if (s.delay_ms === -1) return '<button class="stat" data-act="ping" title="Ketuk untuk tes ulang server ini"><span class="bad">Timeout</span></button>';
+  if (s.delay_ms === -3) return '<button class="stat" data-act="ping" title="Ketuk untuk tes ulang server ini"><span class="bad">Unavailable</span></button>';
+  return `<button class="stat" data-act="ping" title="Ketuk untuk tes ulang server ini"><span class="ms">${s.delay_ms}ms</span></button>`;
 }
 function vServers() {
   if ((S.tab || 'server') === 'dash') return vServersDash();
@@ -267,7 +277,7 @@ function vServersDash() {
     hint += `<div class="hint"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M11 18.5h2"/></svg>Dashboard dari HP/PC lain (satu hotspot/WiFi): buka <b>http://IP-HP-ini:${port}/ui/</b> — mis. <b>http://192.168.56.1:${port}/ui/</b> saat HP ini jadi hotspot.</div>`;
   }
   if (!S.status.running) {
-    $('#view').innerHTML = tabHtml() + `<div class="card"><div class="mut">mihomo belum berjalan — tekan Connect, lalu pilih akun lewat dashboard.</div></div>`;
+    $('#view').innerHTML = tabHtml() + `<div class="card"><div class="mut">${isBoxCore() ? 'Dashboard hanya tersedia saat core mihomo — ganti core ke mihomo di Pengaturan, lalu tekan Connect.' : 'mihomo belum berjalan — tekan Connect, lalu pilih akun lewat dashboard.'}</div></div>`;
   } else if (!['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname) && !S.settings.web_listen_all) {
     $('#view').innerHTML = tabHtml() + `<div class="card"><div class="mut">Dashboard mihomo (port ${port}) hanya bisa dibuka dari HP ini (http://127.0.0.1). Aktifkan "Bisa dibuka dari HP lain (LAN)" di Pengaturan untuk akses dari HP lain.</div></div>` + hint;
   } else {
@@ -282,7 +292,9 @@ async function vServersList() {
   const sel = S.settings.selected_id;
   let h = tabHtml();
   if (!S.servers.length) h += '<div class="card"><div class="mut">Belum ada server. Tekan <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>untuk import.</div></div>';
-  else if (S.servers.length >= 2 && !q) h += '<div class="hint" style="margin:2px 2px 10px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/></svg>Tahan <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5.5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18.5" r="2"/></svg> lalu geser untuk mengurutkan akun</div>';
+  // Hint "Tahan lalu geser / ketuk ping" dihapus 2026-10-27 atas
+  // permintaan user — yang lain (kartu kosong, daftar, tombol)
+  // tidak diubah.
   for (const s of list) {
     h += `<div class="srv ${s.id === sel ? 'sel' : ''}" data-id="${s.id}">
       <span class="dragh" title="Tahan & geser untuk mengurutkan"><svg class="ic solo" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5.5" r="2.4"/><circle cx="12" cy="12" r="2.4"/><circle cx="12" cy="18.5" r="2.4"/></svg></span>
@@ -308,6 +320,15 @@ async function vServersList() {
           const s = S.servers.find(x => x.id === id);
           await navigator.clipboard?.writeText(s.link || '');
           toast('Link disalin'); return;
+        } else if (act === 'ping') {
+          // Tes satu server saja, seperti ketuk ping di zashboard.
+          // Core jalan -> URL Test (lewat core, bisa pakai koneksi
+          // yang sudah terbuka); core belum jalan -> TCP Ping.
+          // Ketuk ping tidak memilih server.
+          const kind = (S.status && S.status.running) ? 'url' : 'tcp';
+          toast('Mengetes…');
+          await api('/api/servers/test', 'POST', { ids: [id], kind });
+          await reload(); vServers(); return;
         } else return;
       } else {
         // tap = pilih server
@@ -428,7 +449,7 @@ $('#btnMore').onclick = e => {
     { label: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4l6 6M12.5 8.5 4 17l3 3 8.5-8.5M4 17l-1 4 4-1"/></svg>Hapus duplikat', fn: async () => { const r = await api('/api/servers/dedup', 'POST'); toast(`Dihapus ${r.removed}`); await reload(); vServers(); } },
     { label: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4l6 6M12.5 8.5 4 17l3 3 8.5-8.5M4 17l-1 4 4-1"/></svg>Hapus server gagal tes', fn: async () => { if (!confirm('Hapus semua server yang hasil tesnya gagal (timeout)?')) return; const r = await api('/api/servers/clear-unavailable', 'POST'); toast(`Dihapus ${r.removed}`); await reload(); vServers(); } },
     { sep: true },
-    { label: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg>Restart service', fn: async () => { if (!confirm('Restart mihomo?')) return; try { toast('Me-restart…'); await api('/api/restart', 'POST'); toast('mihomo di-restart'); } catch (e) { toast(e.message); } } },
+    { label: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg>Restart service', fn: async () => { if (!confirm('Restart ' + coreName() + '?')) return; try { toast('Me-restart…'); await api('/api/restart', 'POST'); toast(coreName() + ' di-restart'); } catch (e) { toast(e.message); } } },
     { label: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>TCP Ping semua', fn: () => testAll('tcp') },
     { label: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg>URL Test semua', fn: () => testAll('url') },
     { label: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Export semua akun', fn: exportAll },
@@ -493,6 +514,26 @@ function openEditor(id, newProto) {
   for (const [k, label, t, o] of FIELDS[proto]) {
     h += t === 's' ? FS('f_' + k, label, p[k] || (Array.isArray(o) && o[0] ? o[0][0] : ''), o) : F('f_' + k, label, p[k], o);
   }
+  if (proto === 'ssh') {
+    const sshOn = p.ssh_payload_on === '1';
+    const sshTls = p.ssh_tls === '1';
+    const sshPayload = p.ssh_payload || 'GET / HTTP/1.1[crlf]Host: [host][crlf]Connection: Upgrade[crlf]User-Agent: [ua][crlf]Upgrade: websocket[crlf][crlf]';
+    const chk = (id, label, on) => `<label class="chk"><div class="t">${label}</div><input type="checkbox" id="${id}" ${on ? 'checked' : ''}></label>`;
+    h += `<div class="sect">SSH — gaya HTTP Custom</div>
+      <div class="hint">Transport di sini Standard (bukan HCR). SSH jalan lewat jembatan lokal: core bicara SSH ke jembatan, jembatan yang kirim payload ke proxy jarak jauh. SlowDNS jalan sendiri, bukan bagian SSH ini.</div>
+      ${chk('eSshOn', 'Gunakan payload', sshOn)}
+      ${chk('eSshEnh', 'Enhanced (payload mentah, seperti ditulis)', p.ssh_enhanced === '1' || sshOn)}
+      <div id="eSshPayloadSec">
+        ${F('eSshProxy', 'proxy jarak jauh (host:port)', p.ssh_proxy, 'contoh: d123.cloudfront.net:443')}
+        <label class="lbl">payload kustom ([host] = address SSH, [protocol] = HTTP/1.1, [ua] = User-Agent, [crlf] = ganti baris)</label><textarea id="eSshPayload" rows="5">${esc(sshPayload)}</textarea>
+        ${FS('eSshMode', 'sesudah payload (101)', (p.ssh_mode || (p.ssh_raw === '1' ? 'raw' : 'ws')), [['ws', 'WebSocket (frame, standar)'], ['raw', 'Pipa mentah (tanpa frame, seperti injector)']])}
+        <div class="hint">Bila tes tetap Timeout di mode WebSocket, coba Pipa mentah, lalu restart core dan tes lagi. Mode WebSocket menambahkan Sec-WebSocket-Key otomatis.</div>
+        ${chk('eSshTls', 'TLS (SNI ke proxy jarak jauh)', sshTls)}
+        <div id="eSshTlsSec">${F('eSshSni', 'SNI (kosong = address SSH)', p.ssh_sni)}
+        ${FS('eSshSniVer', 'versi SNI', p.ssh_sni_ver || '', [['', 'Default']])}
+        ${chk('eSshInsec', 'Izinkan koneksi tidak aman', p.ssh_insecure === '1' || p.ssh_insecure === 'true')}</div>
+      </div>`;
+  }
   if (HAS_TRANSPORT.includes(proto)) {
     const net = p.net || 'tcp';
     h += `<div class="sect">Transport</div>`
@@ -515,7 +556,7 @@ function openEditor(id, newProto) {
   }
   h += `<div class="row" style="margin-top:12px">
       <button class="btn primary" id="eSave"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>Simpan</button>
-      <button class="btn" id="eBack"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Kembali</button>
+      <button class="btn" id="eBack">Kembali</button>
     </div></div>`;
 
   $('#view').innerHTML = h;
@@ -529,7 +570,17 @@ function openEditor(id, newProto) {
   const syncTls = () => { const el = document.getElementById('eTlsSec'); if (el) el.style.display = tlsOn() ? '' : 'none'; };
   if ($('#eNet')) $('#eNet').onchange = syncNet;
   if ($('#eTls')) $('#eTls').onchange = syncTls;
-  syncNet(); syncTls();
+  const syncSsh = () => {
+    const on = document.getElementById('eSshOn');
+    const tls = document.getElementById('eSshTls');
+    const sec = document.getElementById('eSshPayloadSec');
+    const tsec = document.getElementById('eSshTlsSec');
+    if (sec) sec.style.display = (on && on.checked) ? '' : 'none';
+    if (tsec) tsec.style.display = (tls && tls.checked) ? '' : 'none';
+  };
+  if ($('#eSshOn')) $('#eSshOn').onchange = syncSsh;
+  if ($('#eSshTls')) $('#eSshTls').onchange = syncSsh;
+  syncNet(); syncTls(); syncSsh();
 
   $('#eBack').onclick = () => { S.editing = false; vServers(); };
   $('#eSave').onclick = async () => {
@@ -552,6 +603,19 @@ function openEditor(id, newProto) {
         // TLS dimatikan: kosongkan semua field TLS (nilai kosong = dihapus di backend)
         Object.assign(params, { tls: '', sni: '', fp: '', alpn: '', insecure: '', reality: '', pbk: '', sid: '' });
       }
+    }
+    if (proto === 'ssh') {
+      const gcb = fid => { const el = document.getElementById(fid); return el ? (el.checked ? '1' : '') : ''; };
+      params.ssh_payload_on = gcb('eSshOn');
+      params.ssh_enhanced = gcb('eSshEnh');
+      params.ssh_tls = gcb('eSshTls');
+      params.ssh_proxy = gv('eSshProxy');
+      params.ssh_payload = gv('eSshPayload');
+      params.ssh_mode = gv('eSshMode') || 'ws';
+      params.ssh_raw = params.ssh_mode === 'raw' ? '1' : '';
+      params.ssh_sni = gv('eSshSni');
+      params.ssh_sni_ver = gv('eSshSniVer');
+      params.ssh_insecure = gcb('eSshInsec');
     }
     if (!params.server) return toast('Isi address');
     try {
@@ -728,9 +792,9 @@ function groupModal(g0) {
 async function vGroups() {
   $('#view').innerHTML = `<div class="card"><h3>Grup utama</h3>
     <label class="lbl">Nama grup utama (tampil di dashboard)</label>
-    <input id="mgName" value="${esc(S.settings.main_group_name || '🚀 Proxy')}" placeholder="🚀 Proxy">
+    <input id="mgName" value="${esc(S.settings.main_group_name || 'Taptap')}" placeholder="Taptap">
     <div class="row" style="margin-top:10px"><button class="btn small primary" id="mgSave">Simpan</button></div>
-    <div class="hint">Menyimpan me-restart mihomo bila sedang terhubung (nama dipakai di config).</div></div>
+    <div class="hint">Menyimpan me-restart ${coreName()} bila sedang terhubung (nama dipakai di config).</div></div>
     <div class="card"><h3>Grup custom</h3><div id="gcBox">${grpCardHtml()}</div>
     <div class="row" style="margin-top:10px"><button class="btn small primary" id="gcAdd">Tambah grup</button>
     <button class="btn small" id="gcApply">Terapkan (restart)</button></div>
@@ -808,7 +872,7 @@ async function vGroups() {
       try { await api('/api/clash/proxies/' + encodeURIComponent(b.dataset.g), 'PUT', { name: b.dataset.n }); toast('Dialihkan ke ' + b.dataset.n); vGroups(); }
       catch (e) { toast(e.message); }
     };
-  } catch (e) { $('#grpBox').innerHTML = `<div class="mut">Butuh mihomo jalan (tekan Connect): ${esc(e.message)}</div>`; }
+  } catch (e) { $('#grpBox').innerHTML = `<div class="mut">${isBoxCore() ? 'Butuh mihomo jalan — saat ini core sing-box aktif, ganti ke mihomo dulu untuk melihat grup ini: ' : 'Butuh mihomo jalan (tekan Connect): '}${esc(e.message)}</div>`; }
 }
 
 // ================= ROUTES =================
@@ -937,7 +1001,7 @@ function vRoutes() {
       <button class="iconbtn" data-ru="${r.id}" title="Naik">↑</button><button class="iconbtn" data-rn="${r.id}" title="Turun">↓</button>
       <button class="iconbtn" data-re="${r.id}" title="Edit"><svg class="ic solo" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></button><button class="iconbtn" data-rl="${r.id}" title="Hapus"><svg class="ic solo" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button></div>`;
   }).join('');
-  const mgName = S.settings.main_group_name || '🚀 Proxy';
+  const mgName = S.settings.main_group_name || 'Taptap';
   $('#view').innerHTML = `<div class="card"><h3>Rute</h3>
     <div class="mut" style="margin-bottom:8px">Aturan dievaluasi berurutan dari atas.</div>
     <label class="chk"><div class="t">Blokir Iklan<small>GEOSITE category-ads-all → REJECT (geosite.dat)</small></div><input type="checkbox" id="rAds" ${s.block_ads ? 'checked' : ''}></label>
@@ -1117,7 +1181,7 @@ function vSettings() {
 
     <div class="row" style="margin-top:12px"><button class="btn primary" id="sSave"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>Simpan</button>
     <button class="btn" id="sApply"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15l-3-3a20 20 0 0 1 2-4 12 12 0 0 1 9-5c0 3-1 7-5 11a22 22 0 0 1-4 2z"/><path d="M9 12H4s.5-3 2-4c1.3-.9 4 0 4 0M12 15v5s3-.5 4-2c.9-1.3 0-4 0-4"/></svg>Simpan & Terapkan</button></div>
-    <div class="hint">Mengganti mode/MTU/port/bypass butuh restart mihomo.</div></div>`;
+    <div class="hint">Mengganti mode/MTU/port/bypass butuh restart ${coreName()}.</div></div>`;
 
   const get = () => ({
     core: $('#sCore').value, proxy_mode: $('#sPMode').value, tun_mtu: +$('#sMtu').value || 9000,
@@ -1131,7 +1195,7 @@ function vSettings() {
     log_level: $('#sLog').value,
   });
   const modeHints = {
-    tun: 'Semua trafik lewat tun0 (mihomo).',
+    tun: 'Semua trafik lewat tun0.',
     tproxy: 'TCP+UDP via iptables TPROXY \u2014 tanpa TUN.',
     iptables: 'iptables REDIRECT klasik (TCP 80/443).',
     mixed: 'TCP via Redirect + UDP via TProxy.',
@@ -1151,16 +1215,36 @@ async function vLogs() {
   $('#view').innerHTML = `<div class="card"><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg>Logs</h3>
     <div class="row" style="margin-bottom:8px">${(S.settings && S.settings.core === 'singbox') ? '<button class="btn small" id="lX">sing-box</button>' : '<button class="btn small" id="lS">mihomo</button>'}
     <button class="btn small" id="lB">backend</button>
+    <button class="btn small" id="lH">SSH</button>
     <button class="btn small" id="lR"><svg class="ic solo" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14-4M4 5v3h3M4 13a8 8 0 0 0 14 4m2 2v-3h-3"/></svg></button></div>
+    <div class="hint" id="sshHint" style="display:none">SSH beda dari vmess/trojan/vless: dia lewat jembatan, bukan langsung core. Di bawah ini semua akun SSH, bukan cuma yang terpilih. Reconnect otomatis aktif — kalau putus, jembatan mencoba lagi sendiri sampai 3 kali, tidak perlu tekan apa pun.</div>
+    <div id="sshSum" style="display:none;margin-bottom:8px"></div>
     <div class="logbox" id="logBox">Memuat…</div></div>`;
   let type = (S.settings && S.settings.core === 'singbox') ? 'singbox' : 'mihomo';
   const load = async () => {
+    const sum = $('#sshSum'), hint = $('#sshHint');
+    if (sum) sum.style.display = type === 'ssh' ? '' : 'none';
+    if (hint) hint.style.display = type === 'ssh' ? '' : 'none';
+    if (type === 'ssh') {
+      try {
+        const r = await api('/api/ssh-log');
+        const acc = r.accounts || [];
+        if (!acc.length) { if (sum) sum.innerHTML = '<div class="mut">Belum ada akun SSH.</div>'; }
+        else if (sum) sum.innerHTML = acc.map(a => {
+          const last = a.last;
+          const st = last ? (last.ok ? '<span class="ms">Terhubung</span>' : '<span class="bad">Gagal</span>') : '<span class="mut">Belum pernah dicoba</span>';
+          const det = last ? esc(last.detail || '') + (last.time ? ' · ' + esc(last.time) : '') : '';
+          return `<div style="padding:6px 0;border-bottom:1px solid #222"><b>${esc(a.name)}</b> · ${esc(a.mode)}${a.bridge ? ' · jembatan 127.0.0.1:' + a.bridge_port : ''}<br>${st}${det ? ' · ' + det : ''}</div>`;
+        }).join('');
+      } catch (e) { if (sum) sum.innerHTML = '<div class="mut">' + esc(e.message) + '</div>'; }
+    }
     try { const r = await api('/api/logs?type=' + type); $('#logBox').textContent = r.logs || '(kosong)'; $('#logBox').scrollTop = 1e9; }
     catch (e) { $('#logBox').textContent = e.message; }
   };
   if ($('#lS')) $('#lS').onclick = () => { type = 'mihomo'; load(); };
   if ($('#lX')) $('#lX').onclick = () => { type = 'singbox'; load(); };
   $('#lB').onclick = () => { type = 'backend'; load(); };
+  $('#lH').onclick = () => { type = 'ssh'; load(); };
   $('#lR').onclick = load;
   await load();
 }
@@ -1177,7 +1261,7 @@ async function vConfig() {
     <button class="btn small" id="cfgAuto">Kembali ke otomatis</button>
     <button class="btn small" id="cfgCheck">Validasi</button>
     <button class="btn small" id="cfgCopy">Salin</button></div>
-    <div class="hint">${isManual ? 'Config manual divalidasi dengan <code>mihomo -t</code> sebelum dipakai.' : 'Mode otomatis: config di bawah <b>bisa langsung diedit</b> (mis. ubah DNS) lalu tekan <b>Terapkan override</b> — tetap mode otomatis, bukan manual penuh. <code>unified-delay: true</code> sudah bawaan otomatis.<br>Edit grup/rute/server tetap bisa saat override aktif: bagian <code>proxies</code>/<code>proxy-groups</code>/<code>rules</code> otomatis disegarkan dari builder tanpa menghapus editan lain. Inbound (<code>tproxy-port</code>/<code>redir-port</code>/<code>tun</code>/<code>dns.listen</code>) otomatis mengikuti mode proxy aktif — aman ganti mode saat override aktif.<br>"Kembali ke otomatis" menghapus override dan memunculkan lagi config bawaan (tetap bisa diedit lagi).'} Perubahan baru berlaku langsung bila sedang terhubung.</div></div>
+    <div class="hint">${isManual ? 'Config manual divalidasi dengan ' + (isBoxCore() ? '<code>sing-box check</code>' : '<code>mihomo -t</code>') + ' sebelum dipakai.' : 'Mode otomatis: config di bawah <b>bisa langsung diedit</b> (mis. ubah DNS) lalu tekan <b>Terapkan override</b> — tetap mode otomatis, bukan manual penuh. <code>unified-delay: true</code> sudah bawaan otomatis.<br>Edit grup/rute/server tetap bisa saat override aktif: bagian <code>proxies</code>/<code>proxy-groups</code>/<code>rules</code> otomatis disegarkan dari builder tanpa menghapus editan lain. Inbound (<code>tproxy-port</code>/<code>redir-port</code>/<code>tun</code>/<code>dns.listen</code>) otomatis mengikuti mode proxy aktif — aman ganti mode saat override aktif.<br>"Kembali ke otomatis" menghapus override dan memunculkan lagi config bawaan (tetap bisa diedit lagi).'} Perubahan baru berlaku langsung bila sedang terhubung.</div></div>
     <div class="card"><h3>Backup &amp; Restore</h3>
     <textarea id="bkBox" class="logbox" style="width:100%;min-height:140px;font-family:monospace" spellcheck="false" placeholder="Tekan Ambil backup, atau tempel backup lalu Restore"></textarea>
     <div class="row" style="margin-top:10px"><button class="btn small" id="bkGet">Ambil backup</button>
@@ -1239,10 +1323,57 @@ function vAbout() {
   $('#view').innerHTML = `<div class="card"><h3><span class="dlogo sm"><svg class="ic" viewBox="0.8 0.6 22.4 22.4" aria-hidden="true"><use href="#cklogo"/></svg></span>TaptapApp-<span class="go">Go</span></h3>
     <div class="kv"><span>Versi</span><b>${esc((S.status.version || '').replace(/ \([^)]*\)$/, ''))}</b></div>
     <div class="kv"><span>Core</span><b>${(S.status.core === 'singbox') ? 'sing-box ' + (S.status.singbox_version || 'belum terpasang') + ' (aktif) · mihomo ' + (S.status.mihomo_version || 'belum terpasang') : 'mihomo ' + (S.status.mihomo_version || 'belum terpasang') + ' (aktif) · sing-box ' + (S.status.singbox_version || 'belum terpasang')}</b></div>
-    <div class="lnks"><a class="btn small primary" href="https://t.me/TapTap_56" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21l21-9L2 3v7l15 2-15 2z" transform="translate(12 12) rotate(-45) scale(0.85) translate(-12 -12)" fill="currentColor" stroke="none"/></svg>Profil</a><a class="btn small primary" href="https://t.me/Taptapapp_56" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21l21-9L2 3v7l15 2-15 2z" transform="translate(12 12) rotate(-45) scale(0.85) translate(-12 -12)" fill="currentColor" stroke="none"/></svg>Grup</a><a class="btn small primary" href="https://github.com/Taptap56/Taptapapp/tree/main" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" fill="currentColor" stroke="none"/></svg>GitHub</a></div>
+    <div class="lnks"><a class="btn small primary" href="https://t.me/TapTap_56" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21l21-9L2 3v7l15 2-15 2z" transform="translate(12 12) rotate(-45) scale(0.85) translate(-12 -12)" fill="currentColor" stroke="none"/></svg>Profil</a><a class="btn small primary" href="https://t.me/Taptapapp_56" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21l21-9L2 3v7l15 2-15 2z" transform="translate(12 12) rotate(-45) scale(0.85) translate(-12 -12)" fill="currentColor" stroke="none"/></svg>Grup</a></div>
     <div class="hint">Modul Magisk — transparent proxy TUN/iptables + WebUI.</div></div>
+  <div class="card"><h3>Rilis terbaru</h3><div id="relWrap"><div class="hint">Memeriksa rilis terbaru…</div></div></div>
   <div class="card"><h3>Download</h3><div id="dlWrap"><div class="hint">Memeriksa versi baru…</div></div></div>`;
   loadUpdates(false);
+  loadSelfRelease();
+}
+
+// ---------- kartu Rilis terbaru di Tentang (mirip halaman Release GitHub,
+// tombolnya gaya TaptapApp) ----------
+// Data dari /api/release/latest (backend yang cek GitHub, cache 1 jam
+// seperti Download, ?refresh=1 memaksa cek segar); tombol Download
+// mengarah ke aset zip instalasi rilis terbaru, tombol Lihat di GitHub
+// mengarah ke halaman rilis itu. Bila cek gagal, tetap tampil tombol
+// ke https://github.com/Taptap56/Taptapapp/releases/latest, yang selalu
+// meneruskan ke rilis terbaru — jadi tombol tidak pernah buntu.
+async function loadSelfRelease(force) {
+  const wrap = $('#relWrap');
+  if (!wrap) return;
+  if (force) wrap.innerHTML = `<div class="hint">Memeriksa rilis terbaru…</div>`;
+  // Periksa lagi (mirip Download): di semua keadaan — berhasil, gagal,
+  // maupun error fetch — tombol ini selalu ada, jadi tidak perlu
+  // keluar-masuk Tentang untuk cek ulang.
+  const attachRefresh = () => { const b = wrap.querySelector('#relRefresh'); if (b) b.onclick = () => loadSelfRelease(true); };
+  const fallback = `<div class="hint">Gagal memeriksa rilis terbaru.</div><div class="lnks"><a class="btn small primary" href="https://github.com/Taptap56/Taptapapp/releases/latest" target="_blank" rel="noopener">Lihat rilis terbaru</a><button class="btn small" id="relRefresh">Periksa lagi</button></div>`;
+  try {
+    const d = await api('/api/release/latest' + (force ? '?refresh=1' : ''));
+    if (!d || d.error || !d.tag) { wrap.innerHTML = fallback; attachRefresh(); return; }
+    const title = d.name || d.tag;
+    const date = (d.published_at || '').slice(0, 10);
+    const sizeMB = d.asset_size ? (d.asset_size / 1048576).toFixed(2) + ' MB' : '';
+    const isLatest = (d.current || '') === d.tag;
+    const body = (d.body || '').trim();
+    const bodyHtml = body ? `<div class="hint">${esc(body.length > 300 ? body.slice(0, 300) + '…' : body)}</div>` : '';
+    const assetRow = d.asset_name ? `<div class="kv"><span>Aset</span><b>${esc(d.asset_name)}${sizeMB ? ' · ' + sizeMB : ''}</b></div>` : '';
+    const btns = [];
+    if (d.asset_url) btns.push(`<a class="btn small primary" href="${esc(d.asset_url)}" target="_blank" rel="noopener">Download</a>`);
+    if (d.html_url) btns.push(`<a class="btn small" href="${esc(d.html_url)}" target="_blank" rel="noopener">Lihat di GitHub</a>`);
+    btns.push(`<a class="btn small" href="https://github.com/Taptap56/Taptapapp/releases/latest" target="_blank" rel="noopener">Rilis terbaru</a>`);
+    // Semua tombol di satu baris .lnks yang sama (flex:1), jadi lebarnya
+    // sama rata — termasuk Periksa lagi, bukan tombol kecil terpisah.
+    btns.push(`<button class="btn small" id="relRefresh">Periksa lagi</button>`);
+    wrap.innerHTML = `<div class="kv"><span>Rilis</span><b>${esc(title)}</b></div>`
+      + `<div class="kv"><span>Tag</span><b>${esc(d.tag)}</b></div>`
+      + (date ? `<div class="kv"><span>Tanggal</span><b>${esc(date)}</b></div>` : '')
+      + assetRow
+      + `<div class="hint">${isLatest ? 'Ini sudah rilis terbaru.' : 'Versi terpasang ' + esc(d.current || '?') + ' · rilis terbaru ' + esc(d.tag) + '.'}</div>`
+      + bodyHtml
+      + `<div class="lnks">${btns.join('')}</div>`;
+    attachRefresh();
+  } catch (e) { wrap.innerHTML = fallback; attachRefresh(); }
 }
 
 // ---------- kotak Download di Tentang (urutan: mihomo, sing-box, geodata, zashboard, scrcpy) ----------
