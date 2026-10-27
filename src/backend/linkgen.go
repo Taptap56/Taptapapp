@@ -276,6 +276,21 @@ func buildAnyTLSLink(p map[string]string, name string) string {
 	return u.String()
 }
 
+// buildSSHLink: link SSH membawa SEMUA setingan SSH, bukan cuma
+// akunnya. Sebelumnya link hanya berisi user/password/host/port,
+// sehingga copy (Bagikan / Export) lalu import kehilangan payload,
+// proxy, TLS/SNI, mode, dan private key — server hasil copy jadi
+// SSH polos dan tidak jalan seperti aslinya. Sekarang:
+//   - private_key ikut sebagai ?pk= (sudah dibaca parseSSH sejak
+//     lama, tapi dulu tidak pernah ditulis buildSSHLink);
+//   - semua param ssh_* (ssh_payload_on, ssh_enhanced, ssh_payload,
+//     ssh_proxy, ssh_tls, ssh_sni, ssh_sni_ver, ssh_insecure,
+//     ssh_mode, ssh_raw, dan ssh_* baru di masa depan) ikut sebagai
+//     query dengan nama yang sama, jadi parseSSH bisa membacanya
+//     kembali apa adanya. Aplikasi lain mengabaikan query yang
+//     tidak dikenalnya, jadi link tetap bisa diimport sebagai akun
+//     SSH polos di luar TaptapApp, tapi TaptapApp-ke-TaptapApp
+//     tidak kehilangan setingan lagi. Nilai kosong tidak ditulis.
 func buildSSHLink(p map[string]string, name string) string {
 	var user *url.Userinfo
 	if p["password"] != "" {
@@ -283,6 +298,15 @@ func buildSSHLink(p map[string]string, name string) string {
 	} else {
 		user = url.User(p["username"])
 	}
-	u := &url.URL{Scheme: "ssh", User: user, Host: hostPort(p), Fragment: name}
+	q := url.Values{}
+	if v := p["private_key"]; v != "" {
+		q.Set("pk", v)
+	}
+	for k, v := range p {
+		if strings.HasPrefix(k, "ssh_") && v != "" {
+			q.Set(k, v)
+		}
+	}
+	u := &url.URL{Scheme: "ssh", User: user, Host: hostPort(p), RawQuery: q.Encode(), Fragment: name}
 	return u.String()
 }
