@@ -36,7 +36,7 @@ func (a *App) buildV2rayng() map[string]any {
 	}
 
 	outbounds := []any{}
-	// Grup utama (selector): nama bisa diubah user, default "🚀 Proxy".
+	// Grup utama (selector): nama bisa diubah user, default "Taptap".
 	// Grup otomatis "♻️ Otomatis" dihapus di v1.4.0 — user membuat grup
 	// sendiri bila butuh urltest.
 	mg := a.mainGroupTag()
@@ -653,11 +653,20 @@ func serverToOutbound(sv *Server, tag string) (ob map[string]any, ep map[string]
 		"server":      p["server"],
 		"server_port": port,
 	}
-	if tls := tlsObject(p); tls != nil {
-		ob["tls"] = tls
-	}
-	if tr := transportObject(p); tr != nil {
-		ob["transport"] = tr
+	// SSH payload: core bicara SSH polos ke jembatan lokal, BUKAN ke
+	// server jauh. TLS/transport core dimatikan — TLS dan WS dipegang
+	// jembatan (sshbridge.go), bukan core.
+	_, isBridge := sshPayloadProfile(sv)
+	if isBridge {
+		ob["server"] = "127.0.0.1"
+		ob["server_port"] = sshBridgePort
+	} else {
+		if tls := tlsObject(p); tls != nil {
+			ob["tls"] = tls
+		}
+		if tr := transportObject(p); tr != nil {
+			ob["transport"] = tr
+		}
 	}
 	switch sv.Proto {
 	case "vmess":
@@ -736,6 +745,23 @@ func serverToOutbound(sv *Server, tag string) (ob map[string]any, ep map[string]
 		if pk := p["private_key"]; pk != "" {
 			ob["private_key"] = pk
 		}
+		// Perbaikan timeout intermiten sing-box (2026-10-27, Teskan):
+		// core sing-box kadang Timeout kadang konek, mihomo mudah konek.
+		// Dial jembatan (proxy + payload + deteksi framing) bisa makan
+		// beberapa detik, sementara timeout default core pendek, jadi
+		// core menutup koneksi di tengah dial (pola log: 21 byte banner
+		// dari core, 0 byte dari server). connect_timeout 20s memberi
+		// core waktu menunggu dial jembatan selesai. Ini BUKAN
+		// kex_algorithm/cipher/mac — negosiasi KEX sudah terbukti
+		// sukses dengan irisan yang ada (Dropbear 2019.78 vs sing-box).
+		ob["connect_timeout"] = "20s"
+		// client_version tetap, bukan acak sing-box: versi acak adalah
+		// variabel yang tidak perlu di tiap dial, dan OpenSSH_7.8 ini
+		// adalah versi sesi sukses 2m20s (Dropbear 2019.78, log KEX
+		// 2026-10-27 03:43). Server lain umumnya menerima string versi
+		// apa pun, jadi mengunci satu versi yang terbukti tidak merusak
+		// SSH polos maupun lewat jembatan.
+		ob["client_version"] = "SSH-2.0-OpenSSH_7.8"
 	case "tuic":
 		ob["type"] = "tuic"
 		ob["uuid"] = p["uuid"]
