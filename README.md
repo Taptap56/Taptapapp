@@ -23,11 +23,23 @@ tapi tidak ada core yang bisa di-start.
 2. Buka tab **Actions** → workflow **Build TaptapApp-Go** → **Run
    workflow**.
 3. Sesudah run sukses, buka tab **Releases** di repo: Release dengan
-   tag versi (mis. `v1.0.0`) sudah terbit otomatis, dan asetnya hanya
-   zip instalasi (siap flash); zip source tidak ikut diterbitkan.
-   Run ulang dengan versi yang sama akan memperbarui Release itu.
+   tag versi (mis. `v1.0.0`) sudah terbit otomatis, dan asetnya 2 zip
+   instalasi (siap flash): `taptapapp-go-v1.0.0-arm64.zip` untuk HP
+   64-bit dan `taptapapp-go-v1.0.0-v7a.zip` untuk HP 32-bit
+   armeabi-v7a. Salah pilih ditolak installer di awal, tidak merusak
+   data. Zip source tidak ikut diterbitkan. Run ulang dengan versi
+   yang sama akan memperbarui Release itu.
 
 Unduhan utama kini lewat GitHub Releases, bukan artifact Actions.
+
+## Workflow percobaan (artifact, tanpa sentuh Release)
+
+Workflow **Build TaptapApp-Go (artifact, percobaan)** (`.github/workflows/build-artifact.yml`)
+punya build yang sama persis, tapi hasilnya disimpan sebagai artifact
+Actions selama 90 hari, bukan Release. Pakai ini dulu untuk mencoba
+versi baru: Run workflow → tab **Actions** → run itu → **Artifacts**
+→ `taptapapp-go-v1.0.0-arm64-v7a` (berisi kedua zip instalasi + zip
+source). Cocok di HP, baru Run workflow Release dengan versi yang sama.
 
 ## Build lokal (opsional)
 
@@ -37,10 +49,14 @@ Butuh Go 1.21+ (terverifikasi dengan Go 1.27). Dari folder `src/`:
 sh build.sh
 ```
 
-Hasilnya ada di `src/dist/`: `taptapapp-go-v1.0.0.zip` (instalasi) dan
-`taptapapp-go-v1.0.0-source.zip` (source slim). Build lokal tidak butuh
-aset eksternal selama paket SLIM (default); `FULL=1` membundel semua aset
-dan butuh folder `assets/` (core, geodata, zashboard, scrcpy-server.jar).
+Hasilnya ada di `src/dist/`: `taptapapp-go-v1.0.0-arm64.zip`
+(instalasi 64-bit), `taptapapp-go-v1.0.0-v7a.zip` (instalasi 32-bit
+armeabi-v7a), dan `taptapapp-go-v1.0.0-source.zip` (source slim).
+Build lokal tidak butuh aset eksternal selama paket SLIM (default);
+`FULL=1` membundel semua aset dan butuh folder `assets/` (core,
+geodata, zashboard, scrcpy-server.jar) — catatan: aset FULL hanya
+arm64, jadi zip v7a selalu slim. Di HP v7a, kotak Download core
+memilih aset android-armv7, bukan android-arm64.
 
 ## WebUI diperingan
 
