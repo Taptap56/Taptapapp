@@ -1,0 +1,61 @@
+name: Build TaptapApp-Go (artifact, percobaan)
+
+# Workflow PERCOBAAN, manual saja (tombol Run workflow).
+# Sama persis build-nya dengan workflow Release (build.yml), TAPI:
+# hasilnya disimpan sebagai artifact Actions, BUKAN Release.
+# Jadi aman dipakai untuk mencoba versi baru (mis. SSH sshfix2 +
+# WebUI gerak + v7a) tanpa menimpa Release yang sudah terbit.
+# Alur aman: Run workflow ini dulu -> unduh artifact -> flash hasil
+# artifact -> cocok, baru Run workflow Release dengan versi yang sama.
+on:
+  workflow_dispatch:
+
+permissions:
+  # read cukup untuk checkout; upload-artifact butuh actions:write.
+  contents: read
+  actions: write
+
+jobs:
+  build:
+    name: Build module (slim, artifact)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          # go.mod minta go 1.21; 1.27 adalah versi yang terverifikasi
+          # membangun source ini secara lokal.
+          go-version: '1.27'
+
+      - name: Read version
+        id: ver
+        run: echo "ver=$(grep -E '^version=' src/module/module.prop | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Build module (slim)
+        # Slim = default: tanpa core/geodata/zashboard/scrcpy bawaan,
+        # jadi build ini tidak butuh aset eksternal apa pun.
+        # Menghasilkan 2 zip instalasi (arm64 + v7a) dan 1 zip source.
+        run: sh src/build.sh
+
+      - name: Verify both arch zips
+        # build.sh hanya memperingatkan bila NDK v7a hilang — di workflow
+        # ini itu harus gagal, jangan sampai artifact hanya berisi arm64.
+        run: |
+          test -f "src/dist/taptapapp-go-${{ steps.ver.outputs.ver }}-arm64.zip"
+          test -f "src/dist/taptapapp-go-${{ steps.ver.outputs.ver }}-v7a.zip"
+          test -f "src/dist/taptapapp-go-${{ steps.ver.outputs.ver }}-source.zip"
+
+      - name: Upload artifact (percobaan)
+        # TANPA langkah gh release sama sekali — Release tidak disentuh.
+        uses: actions/upload-artifact@v4
+        with:
+          name: taptapapp-go-${{ steps.ver.outputs.ver }}-arm64-v7a
+          path: |
+            src/dist/taptapapp-go-${{ steps.ver.outputs.ver }}-arm64.zip
+            src/dist/taptapapp-go-${{ steps.ver.outputs.ver }}-v7a.zip
+            src/dist/taptapapp-go-${{ steps.ver.outputs.ver }}-source.zip
+          retention-days: 90
