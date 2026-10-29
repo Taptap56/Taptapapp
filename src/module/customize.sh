@@ -17,12 +17,25 @@ _VER=$(grep -E '^version=' "$MODPATH/module.prop" 2>/dev/null | cut -d= -f2)
 ui_print "- Versi  : $_VER"
 ui_print "- MODPATH: $MODPATH"
 
-# Binary hanya tersedia untuk arm64: gagal di awal, jangan diam-diam.
-# (ARCH diisi oleh installer; bila kosong, layout.sh tetap memeriksa saat boot.)
+# Binary tersedia untuk arm64 dan armeabi-v7a (32-bit): gagal di awal,
+# jangan diam-diam. (ARCH diisi oleh installer; bila kosong, layout.sh
+# tetap memeriksa saat boot. Zip arm64 dan v7a dipisah — salah pilih
+# ditolak di sini, tidak merusak data.)
 case "$ARCH" in
-  ""|arm64) ;;
-  *) abort "! Arsitektur $ARCH tidak didukung (butuh arm64)" ;;
+  ""|arm64|arm|armeabi-v7a) ;;
+  *) abort "! Arsitektur $ARCH tidak didukung (butuh arm64 atau armeabi-v7a)" ;;
 esac
+
+# Salah pilih zip ditolak jelas di awal (bukan diam-diam gagal layout):
+# zip arm64 harus membawa bin/arm64, zip v7a harus membawa bin/armv7.
+# Bila ARCH kosong (sebagian manager), pemeriksaan ini dilewati dan
+# layout.sh tetap menggagalkan instalasi bila biner tidak ketemu.
+if [ -n "$MODPATH" ]; then
+  case "$ARCH" in
+    arm64) [ -f "$MODPATH/bin/arm64/taptapapp" ] || abort "! Zip ini bukan arm64 — pakai zip arm64 untuk HP ini" ;;
+    arm|armeabi-v7a) [ -f "$MODPATH/bin/armv7/taptapapp" ] || abort "! Zip ini bukan v7a — pakai zip v7a untuk HP 32-bit ini" ;;
+  esac
+fi
 
 # Logika tata-letak bersama (juga dijalankan tiap boot oleh service.sh,
 # karena sebagian root manager hanya mengekstrak file).
