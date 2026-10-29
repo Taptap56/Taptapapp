@@ -34,6 +34,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -898,6 +899,31 @@ func (a *App) tmpUpdatesDir() (string, error) {
 	return d, nil
 }
 
+// backendABI: nama ABI Android dari GOARCH biner ini (untuk log).
+// backend arm = armeabi-v7a (32-bit), arm64 = arm64-v8a.
+func backendABI() string {
+	switch runtime.GOARCH {
+	case "arm":
+		return "armeabi-v7a"
+	case "arm64":
+		return "arm64-v8a"
+	default:
+		return runtime.GOARCH
+	}
+}
+
+// coreAssetArch: potongan nama aset core upstream untuk arsitektur biner
+// ini. Sing-box: android-arm64 / android-armv7; mihomo: android-arm64 /
+// android-armv7 (pola mihomo-[os]-[arch]-[version].gz). Sebelum v7a,
+// potongan ini di-hardcode android-arm64, sehingga HP 32-bit akan
+// mengunduh core 64-bit yang tidak bisa jalan.
+func coreAssetArch() string {
+	if runtime.GOARCH == "arm" {
+		return "android-armv7"
+	}
+	return "android-arm64"
+}
+
 // installCore: unduh + validasi + pasang core (singbox/mihomo).
 // tag kosong = rilis latest; tag terisi = rilis tag itu (pemilih versi).
 func (a *App) installCore(item, tmpDir, tag string) (string, error) {
@@ -913,13 +939,14 @@ func (a *App) installCore(item, tmpDir, tag string) (string, error) {
 	}
 	ver := stripTag(rel.TagName)
 	var url string
+	arch := coreAssetArch()
 	if item == "singbox" {
 		url, err = pickAsset(rel, func(n string) bool {
-			return strings.Contains(n, "android-arm64") && strings.HasSuffix(n, ".tar.gz")
+			return strings.Contains(n, arch) && strings.HasSuffix(n, ".tar.gz")
 		})
 	} else {
 		url, err = pickAsset(rel, func(n string) bool {
-			return strings.Contains(n, "android-arm64") && strings.HasSuffix(n, ".gz")
+			return strings.Contains(n, arch) && strings.HasSuffix(n, ".gz")
 		})
 	}
 	if err != nil {
