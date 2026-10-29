@@ -54,7 +54,7 @@ func (a *App) logConnectHeader(cfgPath string) {
 	}
 	a.logger.Print("----------------------------------------\n")
 	a.logger.Printf("%s %s\n", tz, now.Format("Mon Jan 02 15:04:05 MST 2006"))
-	a.logger.Printf("version=%s (arm64-v8a)\n", appVersion)
+	a.logger.Printf("version=%s (%s)\n", appVersion, backendABI())
 	a.logger.Printf("mode=%s, config=%s%s\n", st.ProxyMode, cfg, ov)
 	a.logger.Print("----------------------------------------\n")
 }
