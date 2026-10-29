@@ -3,9 +3,12 @@ name: Build TaptapApp-Go
 # Build manual saja (tombol Run workflow), seperti builder kernel.
 # Hasil diterbitkan otomatis sebagai GitHub Release (bukan artifact):
 # tiap Run workflow membuat/memperbarui Release dengan tag = versi
-# dari src/module/module.prop, dan zip instalasi jadi aset Release-nya.
+# dari src/module/module.prop, dan 2 zip instalasi (arm64 + v7a) jadi
+# aset Release-nya. Salah pilih zip ditolak installer di awal.
 # Catatan: tag yang sudah ada akan diperbarui asetnya, jadi Run ulang
 # dengan versi yang sama menimpa Release versi itu.
+# Untuk percobaan TANPA menimpa Release, pakai workflow
+# build-artifact.yml (hasilnya artifact Actions, bukan Release).
 on:
   workflow_dispatch:
 
@@ -46,6 +49,19 @@ jobs:
           tag_name: ${{ steps.ver.outputs.ver }}
           name: TaptapApp-Go ${{ steps.ver.outputs.ver }}
           body: |
+            Perubahan di build ini:
+            - SSH (sshfix2): connect_timeout dihapus (core tidak memutus
+              dial jembatan di tengah jalan), host_key_algorithms
+              eksplisit modern-dulu + ssh-rsa terakhir (Dropbear lama
+              2019.78 hanya menandatangani RSA dengan ssh-rsa), dan
+              client_version dikunci SSH-2.0-OpenSSH_7.8.
+            - WebUI baru model gerak (clay, logo bergerak) menggantikan
+              WebUI lama.
+            - Dukungan HP 32-bit armeabi-v7a: aset Release kini ada 2,
+              arm64 dan v7a — pilih sesuai HP, salah pilih ditolak
+              installer. Di HP v7a, kotak Download core kini memilih
+              aset android-armv7 (sebelumnya selalu android-arm64).
+
             Penambahan: SSH gaya HTTP Custom — akun SSH kini bisa pakai
             payload, proxy jarak jauh, TLS + SNI, dan mode WebSocket /
             Pipa mentah, lewat jembatan lokal di daemon. Copy SSH kini
@@ -75,5 +91,7 @@ jobs:
             scrcpy-server tidak dibundel. Sesudah flash, unduh semuanya
             lewat kotak Download di menu Tentang WebUI, urutannya:
             Core mihomo, Core sing-box, Geodata, Zashboard, Scrcpy.
-          files: src/dist/taptapapp-go-${{ steps.ver.outputs.ver }}.zip
+          files: |
+            src/dist/taptapapp-go-${{ steps.ver.outputs.ver }}-arm64.zip
+            src/dist/taptapapp-go-${{ steps.ver.outputs.ver }}-v7a.zip
           fail_on_unmatched_files: true
