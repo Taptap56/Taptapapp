@@ -773,16 +773,13 @@ func serverToOutbound(sv *Server, tag string) (ob map[string]any, ep map[string]
 		if pk := p["private_key"]; pk != "" {
 			ob["private_key"] = pk
 		}
-		// Perbaikan timeout intermiten sing-box (2026-10-27, Teskan):
-		// core sing-box kadang Timeout kadang konek, mihomo mudah konek.
-		// Dial jembatan (proxy + payload + deteksi framing) bisa makan
-		// beberapa detik, sementara timeout default core pendek, jadi
-		// core menutup koneksi di tengah dial (pola log: 21 byte banner
-		// dari core, 0 byte dari server). connect_timeout 20s memberi
-		// core waktu menunggu dial jembatan selesai. Ini BUKAN
-		// kex_algorithm/cipher/mac — negosiasi KEX sudah terbukti
-		// sukses dengan irisan yang ada (Dropbear 2019.78 vs sing-box).
-		ob["connect_timeout"] = "20s"
+		// connect_timeout TIDAK diset (2026-10-30, lanjutan sshfix2):
+		// batas waktu buatan dari sing-box dihilangkan supaya core tidak
+		// memutus dial jembatan di tengah jalan; batas waktu dial/payload
+		// tetap dipegang jembatan sendiri (sshbridge.go), jadi tidak ada
+		// koneksi yang menggantung tanpa batas. Versi sebelumnya
+		// (connect_timeout 20s, 2026-10-27) terbukti tidak memperbaiki
+		// konek dan hanya membuat gagal terasa lama.
 		// client_version tetap, bukan acak sing-box: versi acak adalah
 		// variabel yang tidak perlu di tiap dial, dan OpenSSH_7.8 ini
 		// adalah versi sesi sukses 2m20s (Dropbear 2019.78, log KEX
@@ -790,6 +787,19 @@ func serverToOutbound(sv *Server, tag string) (ob map[string]any, ep map[string]
 		// apa pun, jadi mengunci satu versi yang terbukti tidak merusak
 		// SSH polos maupun lewat jembatan.
 		ob["client_version"] = "SSH-2.0-OpenSSH_7.8"
+		// Algoritma host key dibuat eksplisit: yang modern didahulukan
+		// (ed25519, ECDSA, RSA SHA-2), lalu ssh-rsa (SHA-1) sebagai
+		// cadangan TERAKHIR. ssh-rsa wajib ada: Dropbear lama (mis. 2019.78)
+		// hanya menandatangani host key RSA dengan ssh-rsa, jadi tanpa itu
+		// klien Go memutus koneksi seketika sementara mihomo (tanpa
+		// pembatasan) tetap konek. Klien memilih entri pertama yang cocok,
+		// jadi server modern tetap memakai algoritma yang kuat.
+		ob["host_key_algorithms"] = []string{
+			"ssh-ed25519",
+			"ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521",
+			"rsa-sha2-512", "rsa-sha2-256",
+			"ssh-rsa",
+		}
 	case "tuic":
 		ob["type"] = "tuic"
 		ob["uuid"] = p["uuid"]
